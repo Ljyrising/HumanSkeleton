@@ -4,7 +4,7 @@
 
 ![骨架与界面预览](design/skeleton-spec-reference.png)
 
-> 走路循环逐帧预览：[walk-cycle-frames.png](design/walk-cycle-frames.png) · FK 修复前后对比：[skeleton-fk-fix-before-after.png](design/skeleton-fk-fix-before-after.png)
+> 走路循环逐帧预览：[walk-cycle-frames.png](design/walk-cycle-frames.png) · FK 修复前后对比：[skeleton-fk-fix-before-after.png](design/skeleton-fk-fix-before-after.png) · 步态优化对比：[walk-cycle-gait-upgrade.png](design/walk-cycle-gait-upgrade.png) · 前后摆臂对比：[walk-cycle-front-back-arms.png](design/walk-cycle-front-back-arms.png)
 
 ## 功能
 
@@ -19,7 +19,7 @@
 | 顶栏 | 菜单、网格开关、预览、导出（写入 `walk_cycle.json`） |
 | 布局 | 平板 1280×800 五区布局（Navigation rail）+ 手机 390×844 竖屏（底部导航） |
 
-播放由 `Choreographer.FrameCallback` 对齐 Vsync，帧号计算与 Canvas 绘制解耦；内置 24 帧闭合走路循环，交替抬腿配合手臂反相，点播放即持续循环。
+播放由 `Choreographer.FrameCallback` 对齐 Vsync，帧号计算与 Canvas 绘制解耦；内置 24 帧闭合走路循环：交替抬腿、骨盆与肩带反向扭转、重心起伏。手臂按矢状面「前后」摆动——设计稿骨架是纯正面 2D，没有深度轴，因此用前摆侧屈肘抬手、沿骨轴透视缩短和「近实远虚」的透明度来表达前后，而不是绕肩横向甩动；点播放即持续循环。
 
 ## 技术栈
 

@@ -12,7 +12,9 @@ import com.example.humanskeleton.art.SkeletonArt
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 
 enum class NavDest { ASSEMBLE, ANIMATE, PARTS, WEIGHTS, SETTINGS }
 enum class Tool { SELECT, BONE, BIND, IK }
@@ -176,34 +178,121 @@ class EditorState {
 
     // ---- 关键帧 ----
     /**
-     * 采样当前帧的动画角度（单位：度）。
-     * 设计稿时间轴只列出 4 条轨道（左上臂 / 左前臂 / 骨盆 / 右大腿），
-     * 对侧四肢在这里自动反相，形成左右交替的 24 帧走路循环；轨道 UI 不增加。
-     * computePartTransforms 会统一把这里的度数转成弧度。
+     * 生成当前帧的步态（角度单位：度）。
+     * 另有三类特殊键：root.x / root.y 重心位移、"&lt;boneId&gt;.len" 沿骨轴缩放、
+     * "depth.l" / "depth.r" 手臂前后深度（供渲染层做近实远虚）。
+     *
+     * 依据参考视频《人体步态·第一课》的四条规律：
+     *  ①「左腿迈出，右臂就向前」—— 左腿 ↔ 右臂同相、右腿 ↔ 左臂同相（对侧同步交替）；
+     *  ②「腿带着骨盆转，肩膀就反着转」—— 骨盆与肩带反向扭转，抵消迈步带来的扭矩；
+     *  ③「固定双臂反而更费力」—— 摆臂由躯干带动、是放松的被动摆动，不是两臂一起开合；
+     *  ④「放松肩膀，让手臂自然摆动」—— 幅度克制、略带滞后，前臂与手随动。
+     *
+     * 实现要点：
+     *  - 统一相位 φ = 2π·frame / 24，全身共用一个时钟，四肢相位关系才严格成立；
+     *    设计稿的 4 条轨道与菱形帧位保留不变，其峰值角度作为幅度系数（仍可编辑）。
+     *  - 所有分量都由 sinφ / sin2φ / (1-cos2φ)/2 构成，在 φ=0 与 φ=π（第 0、12 帧）
+     *    恒为 0 —— 打开 app 仍是设计稿 rest 原样，循环首尾也无缝。
+     *  - **手臂在矢状面（前后）摆动**，而设计稿骨架是纯正面 2D、没有深度轴：
+     *    绕肩旋转在屏幕上只会产生横向位移，无论怎么配相位看起来都是「左右甩臂」。
+     *    因此手臂改用三个正面投影线索表达前后：前摆侧屈肘让手收向中线并抬高、
+     *    沿骨轴透视缩短（".len" 键）、渲染层按 depth 做近实远虚；上臂横向旋转
+     *    只保留 7° 的贴身/外展辅助，不再是主运动。
+     *  - 腿仍在正面可见的平面内运动，左右镜像下**同号旋转才是反相摆动**（异号会变成
+     *    开合跳）；摆动腿的大腿与小腿角度反向配比，让脚留在原位并离地，支撑腿保持伸直，
+     *    配合重心侧移与上下起伏，看起来才是迈步而不是原地抬腿。
      */
     fun animatedAt(f: Float = frame): Map<String, Float> {
-        val base = tracks.associate { it.boneId to sampleTrack(it.keys, f) }.toMutableMap()
-        val armL = base["lArmU"] ?: 0f
-        val forearmL = base["lArmL"] ?: 0f
-        // 「右大腿」轨道的采样值作为步态相位（0 / +8 / 0 / -8）。
-        // 设计稿骨架是正面视角：左右腿简单反相会在同一帧「同时外张 / 同时内合」，像开合跳。
-        // 用半波整流让两条腿交替抬起——每帧只有一条腿屈膝外摆，另一条直立支撑。
-        val phase = base["rThigh"] ?: 0f
-        val leftLift = maxOf(0f, -phase)
-        val rightLift = maxOf(0f, phase)
-        val thighL = leftLift * 1.3f
-        val thighR = -rightLift * 1.3f
-        val shinL = -leftLift * 2.2f      // 抬起侧屈膝，小腿往回收
-        val shinR = rightLift * 2.2f
-        base["rArmU"] = -armL             // 手臂与对侧腿协调，连续小幅摆动
-        base["rArmL"] = -forearmL
-        base["lThigh"] = thighL
-        base["rThigh"] = thighR
-        base["lShin"] = shinL
-        base["rShin"] = shinR
-        base["lFoot"] = -(thighL + shinL) * 0.35f
-        base["rFoot"] = -(thighR + shinR) * 0.35f
-        return base
+        val fn = ((f % FRAME_COUNT) + FRAME_COUNT) % FRAME_COUNT
+        val phi = 2f * PI.toFloat() * fn / FRAME_COUNT.toFloat()
+        val s = sin(phi)
+        val s2 = sin(2f * phi)
+        val hump = (1f - cos(2f * phi)) * 0.5f   // 双支撑期(0/12帧)为 0，单支撑期最高
+
+        /** 轨道峰值 → 幅度系数：用户在时间轴改关键帧角度，整体幅度会跟着变 */
+        fun peak(id: String, fallback: Float): Float {
+            val keys = tracks.firstOrNull { it.boneId == id }?.keys ?: return fallback
+            return keys.maxOf { abs(it.angle) }.takeIf { it > 0.01f } ?: fallback
+        }
+        val legK = peak("rThigh", 8f) / 8f
+        val armK = peak("lArmU", 12f) / 12f
+        val hipK = peak("pelvis", 1.8f) / 1.8f
+
+        // 摆动相：sinφ 决定哪条腿在前；sin2φ 让「蹬地 → 前摆 → 落地」节奏不对称，
+        // 屈膝峰值比抬腿峰值稍晚，形成先抬大腿、再收小腿的折叠感。
+        val swingL = maxOf(0f, s + 0.30f * s2)
+        val swingR = maxOf(0f, -s - 0.30f * s2)
+        val kneeL = maxOf(0f, s - 0.28f * s2)
+        val kneeR = maxOf(0f, -s + 0.28f * s2)
+
+        val out = HashMap<String, Float>()
+
+        // ① 腿：摆动腿抬大腿 + 屈膝，两者角度按 12° : 27° 配比，
+        //    使脚在正面视角下保持原位并明显离地（比例失衡会让脚越过中线交叉，或看不出抬腿）；
+        //    支撑腿伸直，仅极轻微承重屈膝。
+        val thighL = 12f * legK * swingL
+        val thighR = -12f * legK * swingR
+        val shinL = -27f * legK * kneeL - 1.4f * legK * hump
+        val shinR = 27f * legK * kneeR + 1.4f * legK * hump
+        out["lThigh"] = thighL; out["rThigh"] = thighR
+        out["lShin"] = shinL;   out["rShin"] = shinR
+        // 脚踝补偿 + 摆动相轻微翻转，表现脚跟离地 / 落脚
+        out["lFoot"] = -(thighL + shinL) * 0.35f + 6f * legK * swingL
+        out["rFoot"] = -(thighR + shinR) * 0.35f + 6f * legK * swingR
+
+        // ② 手臂：真人走路是在矢状面「前后」摆。φ>0（左腿前迈）→ 右臂前摆 d>0；
+        //    d<0 则左臂前摆，两侧严格交替。深度键交给渲染层做「近实远虚」。
+        val d = (armK * (s + 0.16f * s2)).coerceIn(-1f, 1f)
+        val frontR = maxOf(0f, d)
+        val frontL = maxOf(0f, -d)
+        val ad = abs(d)
+        out["depth.r"] = d
+        out["depth.l"] = -d
+        // 上臂仅 7°：前摆侧贴身内收、后摆侧微外展，只作辅助而非主运动
+        out["lArmU"] = 7f * d
+        out["rArmU"] = 7f * d
+        // 屈肘：前摆侧 20° 把前臂折向身体中线、手抬到腰腹前；后摆侧反向 5° 微展、
+        // 接近伸直。镜像几何下异号 = 两侧都「向中线收」，但只有一侧在屈，不会开合跳。
+        val elbowL = -20f * frontL + 5f * frontR
+        val elbowR = 20f * frontR - 5f * frontL
+        out["lArmL"] = elbowL
+        out["rArmL"] = elbowR
+        out["lHand"] = -0.3f * elbowL           // 手掌略滞后，保持松弛
+        out["rHand"] = -0.3f * elbowR
+        out["lClav"] = 1.0f * hipK * s         // 肩带随胸廓反向扭转
+        out["rClav"] = 1.0f * hipK * s
+        // 沿骨轴透视缩短：前后摆都会略短，前摆侧因屈肘再缩短、肩点前送。
+        // 缩放绕各骨骼 pivot 进行，子骨骼继承父变换，肘/腕关节不会断开。
+        val upper = 1f - 0.06f * ad
+        for ((side, ds, front) in listOf(
+            Triple("l", -d, frontL), Triple("r", d, frontR)
+        )) {
+            val fore = upper - 0.14f * front
+            out["${side}Clav.len"] = 1f - 0.06f * ds
+            out["${side}ArmU.len"] = upper
+            out["${side}ArmL.len"] = fore
+            out["${side}Hand.len"] = fore
+        }
+
+        // ③ 骨盆随腿转，肩带反向转，头回正保持视线稳定
+        out["pelvis"] = -1.3f * hipK * s
+        out["spine"] = 2.6f * hipK * s         // 叠加后胸廓 ≈ +1.3°，与骨盆反相
+        out["chest"] = 0f
+        out["neck"] = 0f
+        out["head"] = -1.3f * hipK * s
+
+        // ④ 重心：向支撑侧平移（φ>0 时右腿支撑 → 右移），单支撑期略升高
+        out["root.x"] = 2.6f * hipK * s
+        out["root.y"] = -3.0f * hipK * hump
+
+        // 默认 4 条轨道的峰值已作为上面的幅度系数；用户在时间轴上给其它骨骼
+        // 新增 / 拖动的关键帧仍按采样值叠加，保证关键帧编辑对任意骨骼都有实际效果。
+        val clipDriven = setOf("lArmU", "lArmL", "pelvis", "rThigh")
+        for (t in tracks) {
+            if (t.boneId in clipDriven) continue
+            out[t.boneId] = (out[t.boneId] ?: 0f) + sampleTrack(t.keys, f)
+        }
+        return out
     }
 
     fun keyframesOf(id: String): List<Keyframe> = tracks.firstOrNull { it.boneId == id }?.keys ?: emptyList()

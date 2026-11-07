@@ -212,6 +212,14 @@ fun rotationAbout(pivot: Offset, rad: Float): Mx =
 /**
  * 计算每根骨骼在「设计稿 SVG 坐标系」中的变换。
  * 父变换自动带动子关节，实现与 RIG 骨骼链一致的前向动力学。
+ *
+ * animated 中除「boneId -> 旋转角度(度)」外，还允许三类特殊键：
+ *   "root.x" / "root.y" —— 整副骨架的重心位移（SVG 单位）；
+ *   "&lt;boneId&gt;.len" —— 该骨骼沿骨轴方向的透视缩放系数（1 = 原长）；
+ *   "depth.l" / "depth.r" —— 手臂前后深度，只供渲染层着色，不参与 FK。
+ * root 是所有骨骼的父节点，在这里施加平移即可带动全身，
+ * 而地面等无骨骼部件仍保持静止，正好体现离地 / 着地。
+ * .len 缩放绕骨骼自身 pivot 进行，子骨骼继承父变换，肘/腕等关节不会断开。
  */
 fun computePartTransforms(
     pose: Map<String, BonePose>,
@@ -230,12 +238,19 @@ fun computePartTransforms(
         // 若按 len/restLength 计算会得到 0→coerce 到 0.25，沿父链层层叠加
         // 会把整副骨架在水平方向压扁成一条竖线（head 仅剩 0.0156 倍）。
         val rest = b.restLength
-        val s = if (p != null && p.length > 0f && rest >= 1f)
+        val manual = if (p != null && p.length > 0f && rest >= 1f)
             (p.length / rest).coerceIn(0.25f, 3f)
         else 1f
+        // 动画驱动的沿骨轴缩放（正面 2D 表现矢状面前后摆臂的透视缩短）。
+        // 零长度的结构节点不参与，避免父链累乘把整副骨架压成竖线。
+        val depthScale = if (rest >= 1f) animated["${b.id}.len"] ?: 1f else 1f
+        val s = (manual * depthScale).coerceIn(0.25f, 3f)
         val local = rotationAbout(b.pivot, rad).concat(lengthMatrix(b.pivot, b.restAngle, s))
+        // 重心位移只在根节点施加一次，靠父链传给所有部件（rig 线 / 关节锚点也一致）。
+        val gx = if (b.id == "root") animated["root.x"] ?: 0f else 0f
+        val gy = if (b.id == "root") animated["root.y"] ?: 0f else 0f
         out[b.id] = parentM
-            .translate(p?.x ?: 0f, p?.y ?: 0f)
+            .translate((p?.x ?: 0f) + gx, (p?.y ?: 0f) + gy)
             .concat(local)
     }
     return out

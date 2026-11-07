@@ -68,13 +68,21 @@ private fun makePaint(color: Int, width: Float, alpha: Float, fill: Boolean, das
         if (dashed) pathEffect = DashPathEffect(floatArrayOf(4f, 4f), 0f)
     }
 
-private fun stylePaints(s: ArtStyle, groupId: String, dark: Boolean, parts: Boolean): StylePair {
-    val key = "${s.role}|${s.strokeColor}|${s.fillColor}|${s.width}|${s.alpha}|${s.filled}|${s.stroked}|$groupId|$dark|$parts"
+/**
+ * alphaQ：0..20 的量化透明度系数（20 = 原样）。
+ * 手臂在矢状面前后摆动时，后摆侧要显得「在身体后面」——降低不透明度是最直观的
+ * 正面 2D 深度线索。量化后 paint 缓存仍然只有有限几档，不会每帧新建 Paint。
+ */
+private fun stylePaints(
+    s: ArtStyle, groupId: String, dark: Boolean, parts: Boolean, alphaQ: Int = 20
+): StylePair {
+    val key = "${s.role}|${s.strokeColor}|${s.fillColor}|${s.width}|${s.alpha}|${s.filled}|${s.stroked}|$groupId|$dark|$parts|$alphaQ"
     return paintCache.getOrPut(key) {
         val (stroke, fillColor, alpha) = resolveColors(s, groupId, dark, parts)
+        val a = alpha * (alphaQ / 20f)
         StylePair(
-            makePaint(fillColor, s.width, alpha, true),
-            makePaint(stroke, s.width, alpha, false)
+            makePaint(fillColor, s.width, a, true),
+            makePaint(stroke, s.width, a, false)
         )
     }
 }
@@ -86,10 +94,10 @@ private fun DrawScope.native(block: (android.graphics.Canvas) -> Unit) {
 /** 绘制设计稿 SVG 的一条指令 */
 private fun drawCmd(
     nc: android.graphics.Canvas, cmd: ArtCmd,
-    groupId: String, dark: Boolean, parts: Boolean
+    groupId: String, dark: Boolean, parts: Boolean, alphaQ: Int = 20
 ) {
     val s = cmd.style
-    val (fp, sp) = stylePaints(s, groupId, dark, parts)
+    val (fp, sp) = stylePaints(s, groupId, dark, parts, alphaQ)
     when (cmd) {
         is ArtCmd.PathData -> {
             if (s.filled) nc.drawPath(cmd.path, fp)
@@ -118,6 +126,16 @@ private val nodeBones = listOf(
     "lThigh", "rThigh", "lShin", "rShin", "lFoot", "rFoot"
 )
 
+/** 是否属于手臂链（锁骨 / 上臂 / 前臂 / 手）——按前后深度着色的范围 */
+private fun isArmBone(id: String?): Boolean = id != null &&
+    (id.contains("Clav") || id.contains("Arm") || id.contains("Hand"))
+
+private fun armAlphaQ(id: String?, qL: Int, qR: Int): Int = when {
+    !isArmBone(id) -> 20
+    id.orEmpty().startsWith("l") -> qL
+    else -> qR
+}
+
 /**
  * 画布主绘制。
  * viewMatrix：设计稿 SVG 坐标 → 屏幕像素；transforms：每根骨骼在 SVG 坐标中的 FK 变换。
@@ -131,6 +149,13 @@ fun DrawScope.drawEditorArtwork(
     val dark = state.darkCanvas
     val parts = state.partsView
     val preview = state.preview
+
+    // 手臂在矢状面前后摆：后摆侧淡 42%，形成「近实远虚」的正面深度感。
+    // depth=0 的第 0 / 12 帧两臂都是原样，保证打开 app 仍是设计稿 rest 姿态。
+    val anim = state.animatedAt()
+    fun depthQ(d: Float) = ((1f - 0.42f * maxOf(0f, -d)) * 20f).toInt().coerceIn(0, 20)
+    val qL = depthQ(anim["depth.l"] ?: 0f)
+    val qR = depthQ(anim["depth.r"] ?: 0f)
 
     drawRect(if (dark) Spec.CanvasDark else Spec.Surface)
 
@@ -193,11 +218,16 @@ fun DrawScope.drawEditorArtwork(
             for (seg in SkeletonDef.segments) {
                 val group = SkeletonArt.groups.firstOrNull { it.id == seg.groupId } ?: continue
                 val m = seg.boneId?.let { transforms[it] } ?: Mx.Identity
+                val q = when (seg.groupId) {
+                    "b-armL" -> qL
+                    "b-armR" -> qR
+                    else -> 20
+                }
                 nc.save()
                 nc.concat(m.toAndroid())
                 for (i in seg.from..seg.to) {
                     val cmd = group.cmds.getOrNull(i) ?: break
-                    drawCmd(nc, cmd, seg.groupId, dark, parts)
+                    drawCmd(nc, cmd, seg.groupId, dark, parts, q)
                 }
                 nc.restore()
             }
@@ -206,9 +236,10 @@ fun DrawScope.drawEditorArtwork(
             joints?.cmds?.forEachIndexed { idx, cmd ->
                 val boneId = SkeletonDef.jointBones.getOrNull(idx)
                 val m = boneId?.let { transforms[it] } ?: Mx.Identity
+                val q = armAlphaQ(boneId, qL, qR)
                 nc.save()
                 nc.concat(m.toAndroid())
-                drawCmd(nc, cmd, "b-joints", dark, parts)
+                drawCmd(nc, cmd, "b-joints", dark, parts, q)
                 nc.restore()
             }
         }
@@ -227,8 +258,9 @@ fun DrawScope.drawEditorArtwork(
             for (b in state.bones) {
                 if (!b.hasRigLine) continue
                 val seg = rigSegment(b, transforms) ?: continue
+                val q = armAlphaQ(b.id, qL, qR) / 20f
                 nc.drawLine(seg.first.x, seg.first.y, seg.second.x, seg.second.y,
-                    linePaint(rigColor, 3.2f, 0.92f))
+                    linePaint(rigColor, 3.2f, 0.92f * q))
             }
             // 旋转弧（tertiary 1.6dp / 4-4 虚线）与 halo 引导线
             if (selSeg != null && state.tool == Tool.SELECT) {
@@ -252,11 +284,12 @@ fun DrawScope.drawEditorArtwork(
                 val boneId = nodeBones.getOrNull(idx) ?: return@forEachIndexed
                 val m = transforms[boneId] ?: Mx.Identity
                 val p = m.map(n.x, n.y)
+                val q = armAlphaQ(boneId, qL, qR) / 20f
                 nc.drawCircle(p.x, p.y, n.r, makePaint(
-                    if (n.anchor) anchorFill else nodeFill, 0f, 1f, true
+                    if (n.anchor) anchorFill else nodeFill, 0f, q, true
                 ))
                 nc.drawCircle(p.x, p.y, n.r, linePaint(
-                    if (n.anchor) Color.White.toArgb() else rigColor, 2.4f, 1f
+                    if (n.anchor) Color.White.toArgb() else rigColor, 2.4f, q
                 ))
             }
         }
