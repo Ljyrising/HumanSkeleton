@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>骨骼动画 App · UI 设计稿 v1.0</title>
+<style>
+:root{
+  --primary:#6750A4;--on-primary:#FFFFFF;--primary-container:#EADDFF;--on-primary-container:#21005D;
+  --secondary:#625B71;--on-secondary:#FFFFFF;--secondary-container:#E8DEF8;--on-secondary-container:#1D192B;
+  --tertiary:#7D5260;--on-tertiary:#FFFFFF;--tertiary-container:#FFD8E4;--on-tertiary-container:#31111D;
+  --error:#B3261E;--error-container:#F9DEDC;--on-error-container:#410E0B;
+  --surface:#FEF7FF;--s1:#F7F2FA;--s2:#F3EDF7;--s3:#ECE6F0;--s4:#E6E0E9;--s5:#E0DAE3;
+  --on-surface:#1D1B20;--on-surface-var:#49454F;--outline:#79747E;--outline-var:#CAC4D0;
+  --page:#FFFFFF;--page-alt:#F7F2FA;
+  --bone:#F4F1EA;--bone-line:#B4B2A9;--bone-deep:#8A8778;
+  --shadow-1:0 1px 2px rgba(0,0,0,.16),0 1px 3px 1px rgba(0,0,0,.08);
+  --shadow-2:0 1px 2px rgba(0,0,0,.14),0 2px 6px 2px rgba(0,0,0,.10);
+  --shadow-3:0 4px 8px 3px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.14);
+  --font:"Roboto","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--on-surface);font-family:var(--font);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:500;letter-spacing:0}
+a{color:inherit;text-decoration:none}
+code,.mono{font-family:var(--mono);font-size:12px}
+
+/* ---------- page chrome ---------- */
+.topnav{position:sticky;top:0;z-index:50;height:56px;display:flex;align-items:center;gap:24px;padding:0 40px;background:rgba(254,247,255,.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--outline-var)}
+.topnav .brand{font-size:14px;font-weight:500;color:var(--primary);display:flex;align-items:center;gap:8px}
+.topnav .brand span{display:inline-block;width:22px;height:22px;border-radius:6px;background:var(--primary-container);position:relative}
+.topnav .brand span::after{content:"";position:absolute;inset:6px 7px;border-left:2px solid var(--primary);border-bottom:2px solid var(--primary);transform:rotate(-24deg)}
+.topnav nav{display:flex;gap:20px;font-size:13px;color:var(--on-surface-var)}
+.topnav nav a:hover{color:var(--primary)}
+.topnav .ver{margin-left:auto;font-size:12px;color:var(--on-surface-var);font-family:var(--mono)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+section{padding:64px 0;border-top:1px solid var(--outline-var)}
+section:first-of-type{border-top:none}
+.eyebrow{font-size:11px;font-weight:500;letter-spacing:.14em;color:var(--primary);text-transform:uppercase;margin-bottom:10px;font-family:var(--mono)}
+h2.title{font-size:28px;line-height:1.3;margin-bottom:8px}
+p.lede{font-size:14px;color:var(--on-surface-var);max-width:720px;margin:0 0 32px}
+h3.sub{font-size:16px;margin:40px 0 14px;display:flex;align-items:center;gap:8px}
+h3.sub::before{content:"";width:3px;height:14px;border-radius:2px;background:var(--primary)}
+.note{font-size:12.5px;color:var(--on-surface-var);margin:10px 0 0}
+
+/* ---------- hero ---------- */
+.hero{padding:72px 0 56px;display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+.hero h1{font-size:40px;line-height:1.22;letter-spacing:-.01em}
+.hero h1 em{font-style:normal;color:var(--primary)}
+.hero p{font-size:15px;color:var(--on-surface-var);margin:18px 0 26px;max-width:440px}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{font-size:12px;padding:6px 14px;border-radius:100px;background:var(--s2);color:var(--on-surface-var)}
+.tag.p{background:var(--primary-container);color:var(--on-primary-container)}
+.hero-art{position:relative;border-radius:28px;background:linear-gradient(160deg,#F3EDF7 0%,#EADDFF 100%);height:420px;overflow:hidden}
+.hero-art .badge{position:absolute;top:20px;left:20px;font-size:11px;font-family:var(--mono);color:var(--on-primary-container);background:rgba(255,255,255,.72);padding:5px 10px;border-radius:8px}
+
+/* ---------- swatches ---------- */
+.pal{display:grid;gap:10px;margin-bottom:8px}
+.pal .row{display:grid;grid-template-columns:104px repeat(11,1fr);gap:6px;align-items:center}
+.pal .lbl{font-size:12px;color:var(--on-surface-var);font-family:var(--mono)}
+.sw{height:44px;border-radius:8px;position:relative;display:flex;align-items:flex-end;justify-content:center;padding-bottom:3px}
+.sw i{font-size:9.5px;font-style:normal;font-family:var(--mono);opacity:.75}
+.sw.ondark i{color:#fff}
+
+.roles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.role{border:1px solid var(--outline-var);border-radius:16px;overflow:hidden}
+.role .chip{height:64px;display:flex;align-items:center;justify-content:center}
+.role .meta{padding:10px 12px;background:var(--page)}
+.role .meta b{display:block;font-size:12.5px;font-weight:500}
+.role .meta span{display:block;font-size:11px;color:var(--on-surface-var);font-family:var(--mono);margin-top:2px}
+
+table.spec{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+table.spec th{text-align:left;font-weight:500;font-size:11.5px;letter-spacing:.04em;color:var(--on-surface-var);padding:10px 12px;border-bottom:1px solid var(--outline-var);text-transform:uppercase}
+table.spec td{padding:11px 12px;border-bottom:1px solid #EDE8F0;vertical-align:top}
+table.spec tr:hover td{background:var(--s1)}
+table.spec td.mono{font-family:var(--mono);font-size:12px;color:var(--on-surface-var)}
+
+/* ---------- icons ---------- */
+.icon-grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px}
+.ic-cell{border:1px solid var(--outline-var);border-radius:14px;padding:12px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:7px;background:var(--page);transition:.15s}
+.ic-cell:hover{border-color:var(--primary);background:var(--s1)}
+.ic-cell .nm{font-size:10.5px;color:var(--on-surface-var);text-align:center;line-height:1.3}
+.ic{display:inline-flex;width:24px;height:24px;color:var(--on-surface-var)}
+.ic svg{width:100%;height:100%;overflow:visible}
+.ic.act{color:var(--primary)}
+.ic-grid-demo{display:flex;gap:2px;flex-wrap:wrap;width:24px}
+.icon-rules{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:22px}
+.rule{border:1px solid var(--outline-var);border-radius:16px;padding:14px}
+.rule b{display:block;font-size:12.5px;margin-bottom:4px}
+.rule span{font-size:11.5px;color:var(--on-surface-var)}
+.rule svg{display:block;margin-bottom:10px}
+
+/* ---------- skeleton showcase ---------- */
+.char-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.char-card{border:1px solid var(--outline-var);border-radius:20px;overflow:hidden;background:var(--page)}
+.char-stage{height:280px;position:relative;display:flex;align-items:center;justify-content:center;background:var(--s1);overflow:hidden}
+.char-stage.grid-bg{background-image:radial-gradient(var(--outline-var) 1px,transparent 1px);background-size:14px 14px}
+.char-stage.dark{background:#1D1B20}
+.char-stage svg{height:262px}
+.char-cap{padding:11px 14px;border-top:1px solid var(--outline-var)}
+.char-cap b{font-size:12.5px;font-weight:500;display:block}
+.char-cap span{font-size:11px;color:var(--on-surface-var)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;font-size:12px;color:var(--on-surface-var)}
+.legend i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+/* skeleton rendering */
+.sk{stroke-linecap:round;stroke-linejoin:round;fill:none}
+.sk .tube{stroke:var(--bone-line);stroke-width:10;fill:none}
+.sk .tube-in{stroke:var(--bone);stroke-width:6;fill:none}
+.sk .thin{stroke:var(--bone-line);stroke-width:7}
+.sk .thin-in{stroke:var(--bone);stroke-width:3.4}
+.sk .skull{fill:var(--bone);stroke:var(--bone-line);stroke-width:3}
+.sk .skull-d{stroke:var(--bone-deep);stroke-width:2.4;fill:none;opacity:.85}
+.sk .socket{fill:var(--bone-line);opacity:.55;stroke:none}
+.sk .joint{fill:var(--bone);stroke:var(--bone-line);stroke-width:3}
+.sk .ground{fill:rgba(29,27,32,.07);stroke:none}
+
+/* variant: 装配态 —— primary 骨骼链叠加 */
+.sk-rig line,.sk-rig path{stroke:var(--primary);stroke-width:3.2;stroke-linecap:round;fill:none;opacity:.92}
+.sk-rig .hl{stroke:var(--primary);stroke-width:9;opacity:.20}
+.sk-rig circle{fill:#fff;stroke:var(--primary);stroke-width:2.4}
+.sk-rig circle.anchor{fill:var(--primary);stroke:#fff;stroke-width:2}
+.sk-rig .arc{stroke:var(--tertiary);stroke-width:1.6;stroke-dasharray:4 4;opacity:.9}
+.sk-rig .halo{fill:none;stroke:var(--primary);stroke-width:1.5;opacity:.4}
+
+/* variant: 部件归属着色 */
+.v-parts .tube,.v-parts .thin{stroke:var(--bone-line)}
+.v-parts .tube-in{stroke:#EFE9E1}
+.v-parts .c-head{stroke:#7D5260!important}
+.v-parts .c-torso{stroke:#6750A4!important}
+.v-parts .c-armL{stroke:#1D9E75!important}
+.v-parts .c-armR{stroke:#378ADD!important}
+.v-parts .c-legL{stroke:#BA7517!important}
+.v-parts .c-legR{stroke:#D4537E!important}
+
+/* ---------- mockup shell ---------- */
+.mk{--bar:64px;font-family:var(--font);color:var(--on-surface)}
+.tablet{width:100%;border-radius:28px;overflow:hidden;box-shadow:var(--shadow-3);border:1px solid var(--outline-var);background:var(--surface)}
+.app{display:grid;grid-template-columns:80px 214px 1fr 266px;grid-template-rows:64px 1fr 184px;grid-template-areas:"bar bar bar bar" "rail tree canvas props" "rail time time time";height:760px;background:var(--surface)}
+.app>header{grid-area:bar;display:flex;align-items:center;gap:14px;padding:0 12px 0 8px;background:var(--surface)}
+.app>nav.rail{grid-area:rail;border-right:1px solid var(--outline-var);display:flex;flex-direction:column;align-items:center;padding:8px 0 12px;gap:4px;background:var(--surface)}
+.app>aside.tree{grid-area:tree;border-right:1px solid var(--outline-var);background:var(--s1);display:flex;flex-direction:column}
+.app>main.canvas{grid-area:canvas;position:relative;overflow:hidden;background:var(--surface)}
+.app>aside.props{grid-area:props;border-left:1px solid var(--outline-var);background:var(--s1);overflow:hidden;display:flex;flex-direction:column}
+.app>footer.time{grid-area:time;border-top:1px solid var(--outline-var);background:var(--s1);display:flex;flex-direction:column}
+
+.ibtn{width:40px;height:40px;border-radius:50%;border:none;background:transparent;display:inline-flex;align-items:center;justify-content:center;color:var(--on-surface-var);cursor:pointer;flex:none}
+.ibtn:hover{background:rgba(103,80,164,.08)}
+.ibtn.on{background:var(--primary);color:#fff}
+.title-block{margin-left:6px;display:flex;flex-direction:column;line-height:1.2}
+.title-block b{font-size:15px;font-weight:500}
+.title-block span{font-size:11px;color:var(--on-surface-var)}
+.btn{height:40px;padding:0 20px;border-radius:20px;border:none;font-family:var(--font);font-size:13.5px;font-weight:500;display:inline-flex;align-items:center;gap:8px;cursor:pointer;letter-spacing:.01em}
+.btn.filled{background:var(--primary);color:#fff}
+.btn.tonal{background:var(--secondary-container);color:var(--on-secondary-container)}
+.btn.outlined{background:transparent;border:1px solid var(--outline);color:var(--primary)}
+.btn.text{background:transparent;color:var(--primary);padding:0 12px}
+.btn .ic{width:18px;height:18px;color:inherit}
+
+.rail-item{width:56px;padding:6px 0 4px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--on-surface-var);cursor:pointer}
+.rail-item .pill{width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center}
+.rail-item.on{color:var(--on-surface);font-weight:500}
+.rail-item.on .pill{background:var(--secondary-container);color:var(--on-secondary-container)}
+.rail-fab{width:56px;height:56px;border-radius:16px;background:var(--primary-container);color:var(--on-primary-container);display:flex;align-items:center;justify-content:center;margin:6px 0 10px;box-shadow:var(--shadow-2)}
+
+.panel-hd{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 16px;flex:none}
+.panel-hd b{font-size:12.5px;font-weight:500;letter-spacing:.02em;color:var(--on-surface)}
+.panel-hd .ic{width:20px;height:20px}
+.tree-list{padding:0 8px;overflow:hidden}
+.trow{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:8px;font-size:12.5px;color:var(--on-surface);position:relative;cursor:default}
+.trow:hover{background:rgba(103,80,164,.06)}
+.trow.sel{background:var(--secondary-container);color:var(--on-secondary-container);font-weight:500}
+.trow .dot{width:7px;height:7px;border-radius:50%;background:var(--primary);flex:none}
+.trow .dot.sub{background:var(--outline)}
+.trow .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trow .ic{width:15px;height:15px;opacity:.5}
+.trow .k{font-size:10px;font-family:var(--mono);color:var(--on-surface-var);opacity:.7}
+.ind1{padding-left:20px}.ind2{padding-left:36px}.ind3{padding-left:52px}
+
+.seg{display:inline-flex;background:var(--s2);border-radius:100px;padding:3px;gap:2px}
+.seg button{height:32px;padding:0 14px;border:none;border-radius:100px;background:transparent;font-family:var(--font);font-size:12px;color:var(--on-surface-var);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.seg button .ic{width:16px;height:16px}
+.seg button.on{background:var(--primary);color:#fff;font-weight:500}
+.seg button.on .ic{color:#fff}
+
+.canvas-tools{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:4}
+.canvas-side{position:absolute;left:12px;top:64px;display:flex;flex-direction:column;gap:2px;background:var(--s2);border-radius:16px;padding:6px;box-shadow:var(--shadow-1)}
+.canvas-side .ibtn{width:36px;height:36px}
+.canvas-side .ibtn .ic{width:20px;height:20px}
+.canvas-hud{position:absolute;right:14px;bottom:12px;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.9);border:1px solid var(--outline-var);border-radius:100px;padding:4px 12px;font-size:11px;font-family:var(--mono);color:var(--on-surface-var)}
+.canvas-hud b{font-weight:500;color:var(--on-surface)}
+.tip{position:absolute;left:44%;top:34%;background:var(--inverse-surface,#322F35);color:#F5EFF7;font-size:11px;padding:6px 10px;border-radius:8px;white-space:nowrap;box-shadow:var(--shadow-2)}
+.tip::after{content:"";position:absolute;left:-4px;top:50%;width:8px;height:8px;background:inherit;transform:translateY(-50%) rotate(45deg)}
+
+.grid-bg{background-image:radial-gradient(#CAC4D0 1px,transparent 1px);background-size:16px 16px;background-position:center}
+
+.prop-body{padding:6px 12px 12px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.field{background:var(--surface);border:1px solid var(--outline);border-radius:8px;padding:6px 12px;font-size:13px;display:flex;align-items:center;justify-content:space-between}
+.field .v{font-family:var(--mono);font-size:12.5px;color:var(--on-surface-var)}
+.field .lbl{font-size:11px;color:var(--primary);font-weight:500}
+.slider-row{margin-top:-4px}
+.slider-row .line{display:flex;justify-content:space-between;font-size:11.5px;color:var(--on-surface-var);margin-bottom:2px}
+.slider-row .line span:last-child{font-family:var(--mono);color:var(--on-surface)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--primary) 0 var(--p,50%),#E7E0EC var(--p,50%) 100%)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--primary);margin-top:-6px;box-shadow:0 0 0 0 rgba(103,80,164,.2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-s{font-size:11.5px;padding:5px 10px;border-radius:8px;border:1px solid var(--outline-var);color:var(--on-surface-var);display:inline-flex;align-items:center;gap:5px}
+.chip-s.on{background:var(--secondary-container);border-color:transparent;color:var(--on-secondary-container);font-weight:500}
+.chip-s .ic{width:13px;height:13px}
+
+/* timeline */
+.time-top{height:44px;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--outline-var);flex:none}
+.time-top .dot-live{width:8px;height:8px;border-radius:50%;background:var(--tertiary);margin:0 2px}
+.time-num{font-family:var(--mono);font-size:12px;color:var(--on-surface);background:var(--surface);border:1px solid var(--outline-var);border-radius:6px;padding:2px 8px}
+.time-body{flex:1;display:flex;overflow:hidden}
+.tracks-names{width:150px;border-right:1px solid var(--outline-var);flex:none;background:var(--s1)}
+.tracks-scroll{flex:1;position:relative;overflow:hidden;background:var(--surface)}
+.ruler{height:22px;display:flex;align-items:center;border-bottom:1px solid var(--outline-var);position:relative;background:var(--s1)}
+.ruler span{position:absolute;font-size:9.5px;font-family:var(--mono);color:var(--on-surface-var);transform:translateX(-50%)}
+.track-h{height:30px;display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:var(--on-surface-var);gap:6px;border-bottom:1px solid #F1ECF4}
+.track-h.sel{color:var(--primary);font-weight:500;background:rgba(103,80,164,.06)}
+.track-row{height:30px;position:relative;border-bottom:1px solid #F1ECF4}
+.track-row .bar{position:absolute;top:50%;height:2px;background:#E7E0EC;transform:translateY(-50%);border-radius:1px}
+.kf{position:absolute;top:50%;width:11px;height:11px;background:var(--primary);transform:translate(-50%,-50%) rotate(45deg);border-radius:2px;border:1.5px solid #fff;cursor:default}
+.kf.t{background:var(--tertiary)}
+.kf.e{background:#fff;border:1.5px solid var(--primary)}
+.playhead{position:absolute;top:0;bottom:0;width:1.5px;background:var(--tertiary);left:50%;z-index:3}
+.playhead::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--tertiary)}
+
+/* phone mockup */
+.phones{display:flex;gap:40px;flex-wrap:wrap}
+.phone{width:344px;height:712px;border-radius:36px;background:var(--surface);border:1px solid var(--outline-var);box-shadow:var(--shadow-3);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.phone .pbar{height:60px;display:flex;align-items:center;gap:10px;padding:0 8px}
+.phone .pcanvas{flex:1;position:relative;background:var(--surface)}
+.phone .sheet{height:150px;border-radius:28px 28px 0 0;background:var(--s1);box-shadow:0 -2px 8px rgba(0,0,0,.06);position:relative;display:flex;flex-direction:column;flex:none}
+.grabber{width:32px;height:4px;border-radius:2px;background:var(--outline-var);margin:10px auto 6px}
+
+/* components gallery */
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.gcard{border:1px solid var(--outline-var);border-radius:20px;padding:18px;background:var(--page)}
+.gcard h4{font-size:12px;font-weight:500;color:var(--on-surface-var);letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px}
+.grow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fab{width:56px;height:56px;border-radius:16px;background:var(--primary-container);color:var(--on-primary-container);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-2)}
+.fab.sm{width:40px;height:40px;border-radius:12px}
+.snack{background:#322F35;color:#F5EFF7;border-radius:6px;padding:12px 16px;font-size:12.5px;display:flex;align-items:center;gap:16px;width:100%}
+.snack b{color:#D0BCFF;font-weight:500;font-size:12.5px}
+.motion-row{display:grid;grid-template-columns:170px 1fr 110px;gap:14px;align-items:center;padding:11px 0;border-bottom:1px solid #F1ECF4;font-size:12.5px}
+.motion-row .bar-anim{height:4px;border-radius:2px;background:var(--primary);opacity:.8}
+.footer{padding:40px 0 64px;border-top:1px solid var(--outline-var);font-size:12px;color:var(--on-surface-var);display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="brand"><span></span>骨骼动画 App</div>
+  <nav>
+    <a href="#color">配色</a>
+    <a href="#type">字体</a>
+    <a href="#icon">图标</a>
+    <a href="#char">骨骼人物</a>
+    <a href="#tablet">平板主界面</a>
+    <a href="#phone">手机</a>
+    <a href="#comp">组件</a>
+  </nav>
+  <div class="ver">UI SPEC v1.0 / MD3</div>
+</div>
+
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Material Design 3 · Android</div>
+      <h1>把一张骨架图<br>变成<em>会动</em>的角色</h1>
+      <p>面向 Android 平板与手机的 2D 骨骼动画编辑器。设计语言采用 Material You，以主色承载骨骼与选中态、第三色承载关键帧与时间，画布保持中性以让素材自己说话。</p>
+      <div class="tags">
+        <span class="tag p">Material 3 基线色板</span>
+        <span class="tag">8dp 栅格</span>
+        <span class="tag">Roboto / 500 字重</span>
+        <span class="tag">24dp 图标</span>
+        <span class="tag">动态取色兼容</span>
+      </div>
+    </div>
+    <div class="hero-art">
+      <div class="badge">hero · 装配态</div>
+      <div class="skel-slot" data-skel="rig" style="position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);height:400px;width:230px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 01 配色 ================= -->
+<section id="color">
+  <div class="wrap">
+    <div class="eyebrow">01 / Color</div>
+    <h2 class="title">配色系统</h2>
+    <p class="lede">基于 Material 3 色调算法生成：一个种子色 <code>#6750A4</code> 展开为 Primary / Secondary / Tertiary / Neutral / Neutral-Variant / Error 六条色调带，界面只使用语义角色，不直接使用原始色值。这样在 Android 12+ 的动态取色（Material You）下可以整体替换而不破坏对比度。</p>
+
+    <div class="pal" id="pal"></div>
+
+    <h3 class="sub">语义角色与应用场景</h3>
+    <div class="roles" id="roles"></div>
+
+    <h3 class="sub">颜色分工</h3>
+    <table class="spec">
+      <thead><tr><th style="width:150px">角色</th><th style="width:210px">界面中的位置</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>Primary</td><td>骨骼链、关节控制点、选中行、主按钮</td><td>代表「结构」——用户正在编辑的骨架本身</td></tr>
+        <tr><td>Primary Container</td><td>当前导航项、FAB、选中列表行</td><td>大面积浅色块，避免与画布中骨骼线抢视觉</td></tr>
+        <tr><td>Secondary</td><td>贴图部件缩略图、次级面板标题</td><td>区分「皮肤」与「骨架」两层概念</td></tr>
+        <tr><td>Tertiary</td><td>关键帧、播放头、录制指示</td><td>时间轴专属色，表示「时间在流动」</td></tr>
+        <tr><td>Error</td><td>解绑、删除部件、权重缺失警告</td><td>仅用于破坏性操作确认</td></tr>
+        <tr><td>Surface / Surface Container</td><td>页面、面板、卡片、时间轴底</td><td>五级 surface 建立层级，不用描边堆叠</td></tr>
+        <tr><td>Outline Variant</td><td>面板分隔线、画布网格</td><td>画布网格透明度不超过 30%</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">深色模式</h3>
+    <p class="note" style="margin-bottom:14px">深色模式下主色升到 tone 80、容器降到 tone 30，保证 4.5:1 对比度；画布背景使用 <code>#1D1B20</code>，骨骼贴图改为 <code>#E6E0E9</code> 与深色画布形成 12:1 对比，骨骼线降到 tone 90 以免过曝。</p>
+    <div class="roles" id="roles-dark"></div>
+  </div>
+</section>
+
+<!-- ================= 02 字体与形状 ================= -->
+<section id="type">
+  <div class="wrap">
+    <div class="eyebrow">02 / Typography · Shape</div>
+    <h2 class="title">字体与形状</h2>
+    <p class="lede">英文与数字用 Roboto，中文回落到 Noto Sans SC。只使用 400 与 500 两个字重，靠字号与颜色建立层级，避免在深色画布上出现笔画糊掉的现象。所有数值（角度、帧号、坐标）使用等宽字体，防止拖动时数字宽度跳动。</p>
+
+    <table class="spec" style="margin-top:0">
+      <thead><tr><th style="width:120px">层级</th><th style="width:150px">规格</th><th style="width:220px">示例</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td>Display small</td><td class="mono">36 / 44 · 400</td><td><span style="font-size:28px">24 帧</span></td><td>空状态、引导页</td></tr>
+        <tr><td>Headline small</td><td class="mono">24 / 32 · 400</td><td><span style="font-size:20px">走路循环</span></td><td>项目名、页面标题</td></tr>
+        <tr><td>Title medium</td><td class="mono">16 / 24 · 500</td><td><span style="font-size:15px;font-weight:500">左上臂</span></td><td>面板标题、骨骼名</td></tr>
+        <tr><td>Body medium</td><td class="mono">14 / 20 · 400</td><td><span style="font-size:13.5px">拖动关节调整姿态</span></td><td>说明文字、列表项</td></tr>
+        <tr><td>Label medium</td><td class="mono">12 / 16 · 500</td><td><span style="font-size:11.5px;font-weight:500">旋转</span></td><td>按钮、标签、属性名</td></tr>
+        <tr><td>Numeric</td><td class="mono">12 / 16 · 400 mono</td><td><span class="mono">-24.5°</span></td><td>所有可拖动数值</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">圆角与高度</h3>
+    <div class="icon-rules">
+      <div class="rule">
+        <b>4 / 8 dp</b><span>输入框、小标签、关键帧菱形</span>
+      </div>
+      <div class="rule"><b>12 / 16 dp</b><span>卡片、面板内区块、FAB</span></div>
+      <div class="rule"><b>20 / 28 dp</b><span>按钮胶囊、底部抽屉、设备外框</span></div>
+      <div class="rule"><b>Elevation 0–3</b><span>面板用 surface 层级而非阴影；仅浮动工具条、FAB、提示气泡使用 elevation</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 03 图标 ================= -->
+<section id="icon">
+  <div class="wrap">
+    <div class="eyebrow">03 / Iconography</div>
+    <h2 class="title">图标风格</h2>
+    <p class="lede">统一采用 Material Symbols Rounded 风格：24dp 画板、2dp 描边、圆头圆角端点、几何构造。默认不填充（FILL 0），被激活的导航项和状态按钮切换为填充版（FILL 1），这是 Material 3 表达选中态的标准方式，不需要额外的背景色。</p>
+
+    <div class="icon-grid" id="icongrid"></div>
+
+    <div class="icon-rules">
+      <div class="rule">
+        <svg width="96" height="72" viewBox="0 0 96 72">
+          <rect x="1" y="1" width="70" height="70" fill="none" stroke="#CAC4D0" stroke-dasharray="3 3"/>
+          <g stroke="#E7E0EC"><path d="M24 1v70M47 1v70M1 24h70M1 47h70"/></g>
+          <g stroke="#6750A4" stroke-width="1.8" fill="none" stroke-linecap="round">
+            <path d="M26 46 L36 24 L46 46"/><path d="M29.5 39h13"/>
+          </g>
+          <circle cx="36" cy="36" r="22" fill="none" stroke="#6750A4" stroke-opacity=".3"/>
+          <text x="76" y="30" font-size="9" fill="#49454F" font-family="monospace">24dp</text>
+          <text x="76" y="42" font-size="9" fill="#49454F" font-family="monospace">2dp</text>
+        </svg>
+        <b>画板与描边</b><span>24×24 画板，四周留 2dp 安全区，笔画落在 2dp 整数格上</span>
+      </div>
+      <div class="rule">
+        <div class="grow" style="margin-bottom:10px">
+          <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 14.5 9.5"/><circle cx="7.8" cy="13" r="2.4"/><circle cx="11" cy="16.2" r="2.4"/><circle cx="13" cy="7.8" r="2.4"/><circle cx="16.2" cy="11" r="2.4"/></svg></span>
+          <span class="ic act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5 14.5 9.5" stroke-width="2.6"/><circle cx="7.8" cy="13" r="2.4" fill="currentColor"/><circle cx="11" cy="16.2" r="2.4" fill="currentColor"/><circle cx="13" cy="7.8" r="2.4" fill="currentColor"/><circle cx="16.2" cy="11" r="2.4" fill="currentColor"/></svg></span>
+        </div>
+        <b>线性 / 填充两态</b><span>未选中用线性（on-surface-variant），选中用填充 + primary</span>
+      </div>
+      <div class="rule">
+        <svg width="96" height="72" viewBox="0 0 96 72">
+          <g fill="none" stroke="#6750A4" stroke-width="2" stroke-linecap="round">
+            <path d="M18 34c0-7 5-12 12-12s12 5 12 12-5 12-12 12"/>
+            <path d="M42 46c7 0 12-5 12-12"/>
+          </g>
+          <g fill="none" stroke="#79747E" stroke-width="2" stroke-linecap="round">
+            <path d="M60 20h16M60 30h16M60 40h10"/>
+          </g>
+          <text x="18" y="64" font-size="9" fill="#49454F" font-family="monospace">action</text>
+          <text x="60" y="64" font-size="9" fill="#49454F" font-family="monospace">text</text>
+        </svg>
+        <b>单色约束</b><span>一个图标只用一种颜色；多色仅出现在骨骼贴图本身</span>
+      </div>
+      <div class="rule">
+        <svg width="96" height="72" viewBox="0 0 96 72">
+          <rect x="8" y="14" width="36" height="36" rx="10" fill="#EADDFF"/>
+          <g transform="translate(16,22)" fill="none" stroke="#21005D" stroke-width="1.8" stroke-linecap="round"><path d="M8 6v8M4 10h8"/><path d="M8 18v2"/></g>
+          <rect x="52" y="14" width="36" height="36" rx="10" fill="#F3EDF7"/>
+          <g transform="translate(60,22)" fill="none" stroke="#49454F" stroke-width="1.8" stroke-linecap="round"><path d="M8 6v8M4 10h8"/><path d="M8 18v2"/></g>
+          <text x="8" y="64" font-size="9" fill="#49454F" font-family="monospace">32dp 命中</text>
+        </svg>
+        <b>触控与容器</b><span>图标本体 24dp，触控热区不少于 48dp，容器圆角 10–12dp</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 04 骨骼人物 ================= -->
+<section id="char">
+  <div class="wrap">
+    <div class="eyebrow">04 / Character</div>
+    <h2 class="title">骨骼人物的视觉呈现</h2>
+    <p class="lede">角色资产遵循「三层分离」原则：<b>贴图层</b>（导入的骨骼插画）、<b>骨架层</b>（主色关节链）、<b>控制层</b>（手柄、旋转弧、标签）。三层可独立开关，任何时候都不允许把控制器画进贴图里——这样导出时才不会被烘焙进去。骨骼插画按部件切分，用米白 <code>#F4F1EA</code> 填充配 <code>#B4B2A9</code> 描边，在深色和浅色画布上都能保持轮廓。</p>
+
+    <div class="char-grid">
+      <div class="char-card">
+        <div class="char-stage">
+          <div class="skel-slot" data-skel="raw" style="height:262px;width:150px"></div>
+        </div>
+        <div class="char-cap"><b>① 原始素材</b><span>导入的整张骨架图，尚未切分</span></div>
+      </div>
+      <div class="char-card">
+        <div class="char-stage grid-bg">
+          <div class="skel-slot" data-skel="rig" style="height:262px;width:150px"></div>
+        </div>
+        <div class="char-cap"><b>② 装配态</b><span>叠加主色骨骼链与关节锚点</span></div>
+      </div>
+      <div class="char-card">
+        <div class="char-stage grid-bg">
+          <div class="skel-slot" data-skel="sel" style="height:262px;width:150px"></div>
+        </div>
+        <div class="char-cap"><b>③ 选中与旋转</b><span>选中骨骼加粗发光，显示旋转弧</span></div>
+      </div>
+      <div class="char-card">
+        <div class="char-stage">
+          <div class="skel-slot" data-skel="parts" style="height:262px;width:150px"></div>
+        </div>
+        <div class="char-cap"><b>④ 部件归属</b><span>按切图分组的着色视图</span></div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:#6750A4"></i>骨骼链 · 3.2dp</span>
+      <span><i style="background:#fff;border:2px solid #6750A4"></i>关节锚点 · 9dp</span>
+      <span><i style="background:#7D5260"></i>旋转弧 · 1.6dp 虚线</span>
+      <span><i style="background:#F4F1EA;border:1px solid #B4B2A9"></i>贴图骨骼 · 米白 #F4F1EA</span>
+    </div>
+
+    <h3 class="sub">绘制规格</h3>
+    <table class="spec">
+      <thead><tr><th style="width:150px">元素</th><th style="width:190px">规格</th><th>规则</th></tr></thead>
+      <tbody>
+        <tr><td>骨骼链</td><td class="mono">3.2dp · primary · 圆头</td><td>从父关节中心连到子关节中心，永远压在贴图之上</td></tr>
+        <tr><td>关节锚点</td><td class="mono">9dp 圆 · 白填充 + 2.4dp 描边</td><td>可拖拽的旋转轴心；根节点用实心 primary 加白描边区分</td></tr>
+        <tr><td>选中骨骼</td><td class="mono">9dp / 20% 透明度光晕</td><td>在骨骼链下方垫一条加粗半透明线，避免破坏原线宽</td></tr>
+        <tr><td>旋转弧</td><td class="mono">1.6dp · tertiary · 4/4 虚线</td><td>拖拽时出现，标注当前角度与增量</td></tr>
+        <tr><td>IK 目标</td><td class="mono">双环 14dp</td><td>外环虚线表示可拖拽，内环实心表示已锁定</td></tr>
+        <tr><td>层级缩进</td><td class="mono">16dp / 级</td><td>骨骼树最多 5 级，超过则折叠分组</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="sub">深色画布中的呈现</h3>
+    <div class="char-grid" style="grid-template-columns:1fr 1fr">
+      <div class="char-card">
+        <div class="char-stage dark">
+          <div class="skel-slot" data-skel="dark" style="height:262px;width:150px"></div>
+        </div>
+        <div class="char-cap"><b>深色画布</b><span>贴图升至 #E6E0E9，骨骼链用 tone 80</span></div>
+      </div>
+      <div class="char-card" style="display:flex;flex-direction:column;justify-content:center;padding:24px">
+        <b style="font-size:13px;display:block;margin-bottom:10px">为什么不用纯黑背景</b>
+        <p style="font-size:12.5px;color:var(--on-surface-var);margin:0 0 10px">纯黑 (#000) 会让米白骨骼产生强烈余晖，长时间绑骨容易视觉疲劳。使用 <code>#1D1B20</code>（Neutral 10）配合 8dp 点阵网格，既保持暗室感，又让骨骼轮廓有柔和边界。</p>
+        <div class="chips">
+          <span class="chip-s on">背景 #1D1B20</span>
+          <span class="chip-s">网格 #322F35</span>
+          <span class="chip-s">骨骼 #E6E0E9</span>
+          <span class="chip-s">骨骼链 #D0BCFF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 05 平板主界面 ================= -->
+<section id="tablet">
+  <div class="wrap">
+    <div class="eyebrow">05 / Layout · Tablet</div>
+    <h2 class="title">平板主界面 · 1280×800</h2>
+    <p class="lede">五区结构沿用草图，但按 Material 3 的自适应布局重排：左侧导航栏（Navigation rail）承载一级目的地，骨骼树与属性面板作为 216/266dp 的固定侧栏，时间轴横贯底部。所有面板边界用 1dp outline-variant 分隔，不用阴影，保证画布是唯一的视觉焦点。</p>
+
+    <div class="mk">
+      <div class="tablet">
+        <div class="app">
+          <header>
+            <button class="ibtn"><span class="ic" data-ic="menu"></span></button>
+            <div class="title-block"><b>走路循环</b><span>角色_骨架_v3 · 24 帧 / 30fps</span></div>
+            <div style="flex:1"></div>
+            <button class="ibtn"><span class="ic" data-ic="undo"></span></button>
+            <button class="ibtn"><span class="ic" data-ic="redo"></span></button>
+            <button class="ibtn"><span class="ic" data-ic="grid"></span></button>
+            <div style="width:8px"></div>
+            <button class="btn text">预览</button>
+            <button class="btn filled"><span class="ic" data-ic="export"></span>导出</button>
+          </header>
+
+          <nav class="rail">
+            <div class="rail-item on"><div class="pill"><span class="ic" data-ic="bone"></span></div>装配</div>
+            <div class="rail-item"><div class="pill"><span class="ic" data-ic="keyframe"></span></div>动画</div>
+            <div class="rail-item"><div class="pill"><span class="ic" data-ic="image"></span></div>部件</div>
+            <div class="rail-item"><div class="pill"><span class="ic" data-ic="weight"></span></div>权重</div>
+            <div style="flex:1"></div>
+            <div class="rail-fab"><span class="ic" data-ic="add" style="width:26px;height:26px"></span></div>
+            <div class="rail-item"><div class="pill"><span class="ic" data-ic="settings"></span></div>设置</div>
+          </nav>
+
+          <aside class="tree">
+            <div class="panel-hd"><b>骨骼层级</b><span class="ic" data-ic="more"></span></div>
+            <div class="tree-list">
+              <div class="trow"><span class="ic" data-ic="chevron" style="width:14px;height:14px;transform:rotate(90deg)"></span><span class="dot"></span><span class="nm">骨架 root</span></div>
+              <div class="trow ind1"><span class="dot"></span><span class="nm">骨盆</span><span class="k">12</span></div>
+              <div class="trow ind2"><span class="dot"></span><span class="nm">脊柱</span><span class="k">8</span></div>
+              <div class="trow ind3"><span class="dot"></span><span class="nm">胸廓</span></div>
+              <div class="trow ind3"><span class="dot"></span><span class="nm">颈</span></div>
+              <div class="trow ind3"><span class="dot sub"></span><span class="nm">头骨</span></div>
+              <div class="trow ind2"><span class="dot"></span><span class="nm">锁骨 · 左</span></div>
+              <div class="trow ind3 sel"><span class="dot"></span><span class="nm">左上臂</span><span class="k">6</span></div>
+              <div class="trow ind3" style="padding-left:68px"><span class="dot sub"></span><span class="nm">左前臂</span><span class="k">4</span></div>
+              <div class="trow ind3" style="padding-left:68px"><span class="dot sub"></span><span class="nm">左手</span></div>
+              <div class="trow ind2"><span class="dot"></span><span class="nm">锁骨 · 右</span></div>
+              <div class="trow ind3"><span class="dot sub"></span><span class="nm">右上臂</span><span class="k">6</span></div>
+              <div class="trow ind2"><span class="dot"></span><span class="nm">髋 · 左</span></div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="padding:10px 12px;border-top:1px solid var(--outline-var);display:flex;align-items:center;gap:8px">
+              <span class="chip-s on"><span class="ic" data-ic="eye"></span>显示贴图</span>
+              <span class="chip-s"><span class="ic" data-ic="lock"></span>锁定</span>
+            </div>
+          </aside>
+
+          <main class="canvas grid-bg">
+            <div class="canvas-tools">
+              <div class="seg">
+                <button class="on"><span class="ic" data-ic="select"></span>选择</button>
+                <button><span class="ic" data-ic="bone"></span>骨骼</button>
+                <button><span class="ic" data-ic="link"></span>绑定</button>
+                <button><span class="ic" data-ic="ik"></span>IK</button>
+              </div>
+            </div>
+            <div class="canvas-side">
+              <button class="ibtn on"><span class="ic" data-ic="select"></span></button>
+              <button class="ibtn"><span class="ic" data-ic="bone"></span></button>
+              <button class="ibtn"><span class="ic" data-ic="link"></span></button>
+              <button class="ibtn"><span class="ic" data-ic="mirror"></span></button>
+              <button class="ibtn"><span class="ic" data-ic="zoom"></span></button>
+            </div>
+            <div style="position:absolute;inset:36px 0 0 0;display:flex;align-items:center;justify-content:center">
+              <div id="canvasSkel" style="height:100%;max-height:430px;aspect-ratio:300/560"></div>
+            </div>
+            <div class="tip" style="left:52%;top:30%">左上臂 · 旋转 <span class="mono">24°</span></div>
+            <div class="canvas-hud"><b>100%</b><span style="opacity:.5">|</span><span class="mono">x 148 · y 302</span></div>
+          </main>
+
+          <aside class="props">
+            <div class="panel-hd"><b>属性 · 左上臂</b><span class="ic" data-ic="more"></span></div>
+            <div class="prop-body">
+              <div class="field"><span class="lbl">旋转</span><span class="v">24.0°</span></div>
+              <div class="slider-row">
+                <div class="line"><span>−180°</span><span>+180°</span></div>
+                <input type="range" min="-180" max="180" value="24" style="--p:57%">
+              </div>
+              <div style="display:flex;gap:8px">
+                <div class="field" style="flex:1"><span>x</span><span class="v">−12</span></div>
+                <div class="field" style="flex:1"><span>y</span><span class="v">8</span></div>
+              </div>
+              <div class="slider-row">
+                <div class="line"><span>长度</span><span>86 dp</span></div>
+                <input type="range" min="0" max="160" value="86" style="--p:54%">
+              </div>
+              <div style="height:1px;background:var(--outline-var)"></div>
+              <div style="font-size:11.5px;color:var(--on-surface-var);font-weight:500">绑定到贴图</div>
+              <div class="chips">
+                <span class="chip-s on">左上臂.png</span>
+                <span class="chip-s"><span class="ic" data-ic="add"></span>添加部件</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--on-surface-var);font-weight:500">动画属性</div>
+              <div style="display:flex;gap:8px">
+                <div class="field" style="flex:1"><span style="font-size:11px">缓动</span><span class="v" style="font-size:11px">Ease</span></div>
+                <div class="field" style="flex:1"><span style="font-size:11px">排序</span><span class="v" style="font-size:11px">3</span></div>
+              </div>
+              <div style="flex:1"></div>
+              <div style="display:flex;gap:8px">
+                <button class="btn tonal" style="flex:1;justify-content:center;font-size:12.5px">重置</button>
+                <button class="btn outlined" style="flex:1;justify-content:center;font-size:12.5px">镜像</button>
+              </div>
+            </div>
+          </aside>
+
+          <footer class="time">
+            <div class="time-top">
+              <button class="ibtn on" style="width:36px;height:36px"><span class="ic" data-ic="play" style="width:18px;height:18px"></span></button>
+              <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="prev" style="width:18px;height:18px"></span></button>
+              <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="next" style="width:18px;height:18px"></span></button>
+              <div class="time-num">帧 12 / 24</div>
+              <div class="dot-live"></div>
+              <span style="font-size:11.5px;color:var(--tertiary);font-weight:500">录制中</span>
+              <div style="flex:1"></div>
+              <span class="chip-s on"><span class="ic" data-ic="onion"></span>洋葱皮</span>
+              <span class="chip-s">循环</span>
+              <span class="chip-s"><span class="ic" data-ic="add"></span>关键帧</span>
+            </div>
+            <div class="time-body">
+              <div class="tracks-names">
+                <div class="ruler" style="height:22px"></div>
+                <div class="track-h sel"><span class="ic" data-ic="bone" style="width:13px;height:13px"></span>左上臂</div>
+                <div class="track-h"><span class="ic" data-ic="bone" style="width:13px;height:13px"></span>左前臂</div>
+                <div class="track-h"><span class="ic" data-ic="bone" style="width:13px;height:13px"></span>骨盆</div>
+                <div class="track-h"><span class="ic" data-ic="bone" style="width:13px;height:13px"></span>右大腿</div>
+              </div>
+              <div class="tracks-scroll" id="tl">
+                <div class="ruler" style="height:22px">
+                  <span style="left:0%">0</span><span style="left:16.7%">4</span><span style="left:33.3%">8</span><span style="left:50%">12</span><span style="left:66.7%">16</span><span style="left:83.3%">20</span><span style="left:98%">24</span>
+                </div>
+                <div class="track-row">
+                  <div class="bar" style="left:0;width:100%"></div>
+                  <i class="kf" style="left:0%"></i><i class="kf" style="left:33%"></i><i class="kf" style="left:66%"></i><i class="kf t" style="left:98%"></i>
+                </div>
+                <div class="track-row">
+                  <div class="bar" style="left:0;width:100%"></div>
+                  <i class="kf" style="left:0%"></i><i class="kf" style="left:50%"></i><i class="kf t" style="left:98%"></i>
+                </div>
+                <div class="track-row">
+                  <div class="bar" style="left:0;width:100%"></div>
+                  <i class="kf" style="left:0%"></i><i class="kf e" style="left:16%"></i><i class="kf" style="left:33%"></i><i class="kf e" style="left:50%"></i><i class="kf" style="left:66%"></i><i class="kf e" style="left:83%"></i>
+                </div>
+                <div class="track-row">
+                  <div class="bar" style="left:0;width:100%"></div>
+                  <i class="kf" style="left:0%"></i><i class="kf" style="left:25%"></i><i class="kf" style="left:50%"></i><i class="kf" style="left:75%"></i>
+                </div>
+                <div class="playhead"></div>
+              </div>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </div>
+    <p class="note">交互要点：单指拖动关节旋转骨骼、双指缩放平移画布、长按关节弹出「设为 IK / 解绑 / 重命名」浮层；时间轴上双击轨道空白处插入关键帧，拖动关键帧时吸附到整帧并显示帧号气泡。</p>
+  </div>
+</section>
+
+<!-- ================= 06 手机 ================= -->
+<section id="phone">
+  <div class="wrap">
+    <div class="eyebrow">06 / Layout · Phone</div>
+    <h2 class="title">手机竖屏适配 · 390×844</h2>
+    <p class="lede">手机上不做完整编辑器，只做「看 + 微调」：画布占主视觉，时间轴收进底部抽屉（Bottom sheet），属性改为点击骨骼后从底部弹出的面板。一级导航从 rail 降级为底部导航栏，运指可达。</p>
+
+    <div class="phones">
+      <div class="phone">
+        <div class="pbar">
+          <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="menu"></span></button>
+          <div class="title-block"><b style="font-size:14px">走路循环</b><span>第 12 帧</span></div>
+          <div style="flex:1"></div>
+          <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="undo"></span></button>
+          <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="more"></span></button>
+        </div>
+        <div class="pcanvas grid-bg">
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+            <div id="phoneSkel" style="height:410px;width:220px"></div>
+          </div>
+          <div style="position:absolute;left:12px;top:16px;display:flex;flex-direction:column;gap:2px;background:var(--s2);border-radius:14px;padding:5px;box-shadow:var(--shadow-1)">
+            <button class="ibtn" style="width:34px;height:34px"><span class="ic" data-ic="select" style="width:19px;height:19px"></span></button>
+            <button class="ibtn" style="width:34px;height:34px"><span class="ic" data-ic="bone" style="width:19px;height:19px"></span></button>
+            <button class="ibtn" style="width:34px;height:34px"><span class="ic" data-ic="link" style="width:19px;height:19px"></span></button>
+            <button class="ibtn" style="width:34px;height:34px"><span class="ic" data-ic="zoom" style="width:19px;height:19px"></span></button>
+          </div>
+          <div style="position:absolute;right:14px;bottom:14px;width:56px;height:56px;border-radius:16px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-3)">
+            <span class="ic" data-ic="play" style="width:24px;height:24px;color:#fff"></span>
+          </div>
+        </div>
+        <div class="sheet">
+          <div class="grabber"></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:0 16px 6px">
+            <span style="font-size:12px;font-weight:500">时间轴</span>
+            <div class="time-num" style="font-size:11px;padding:1px 7px">12 / 24</div>
+            <div style="flex:1"></div>
+            <span class="chip-s on" style="font-size:10.5px;padding:3px 8px">洋葱皮</span>
+          </div>
+          <div style="flex:1;position:relative;margin:0 16px 10px;border-radius:10px;background:var(--surface);overflow:hidden">
+            <div style="height:16px;display:flex;align-items:center;position:relative">
+              <span style="position:absolute;left:2px;font-size:8.5px;font-family:var(--mono);color:var(--on-surface-var)">0</span>
+              <span style="position:absolute;left:48%;font-size:8.5px;font-family:var(--mono);color:var(--on-surface-var)">12</span>
+              <span style="position:absolute;right:2px;font-size:8.5px;font-family:var(--mono);color:var(--on-surface-var)">24</span>
+            </div>
+            <div class="track-row" style="border-bottom:none">
+              <div class="bar" style="left:8px;right:8px"></div>
+              <i class="kf" style="left:6%;width:9px;height:9px"></i><i class="kf" style="left:34%;width:9px;height:9px"></i><i class="kf" style="left:66%;width:9px;height:9px"></i>
+            </div>
+            <div class="playhead" style="left:50%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone" style="height:712px">
+        <div class="pbar">
+          <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="chevron" style="transform:rotate(180deg)"></span></button>
+          <div class="title-block"><b style="font-size:14px">左上臂</b><span>绑定与动画属性</span></div>
+          <div style="flex:1"></div>
+          <button class="ibtn" style="width:36px;height:36px"><span class="ic" data-ic="more"></span></button>
+        </div>
+        <div style="flex:1;overflow:hidden;background:var(--s1);border-radius:28px 28px 0 0;padding:20px 16px;display:flex;flex-direction:column;gap:16px;margin-top:auto">
+          <div class="grabber" style="margin:0 auto 4px"></div>
+          <div>
+            <div style="font-size:11.5px;color:var(--on-surface-var);margin-bottom:4px">旋转</div>
+            <div style="display:flex;align-items:baseline;gap:6px"><span class="mono" style="font-size:26px;color:var(--primary)">24.0</span><span style="font-size:13px;color:var(--on-surface-var)">度</span></div>
+            <input type="range" min="-180" max="180" value="24" style="--p:57%;margin-top:8px">
+          </div>
+          <div style="display:flex;gap:10px">
+            <div class="field" style="flex:1;background:var(--surface)"><span style="font-size:11px">X</span><span class="v">−12</span></div>
+            <div class="field" style="flex:1;background:var(--surface)"><span style="font-size:11px">Y</span><span class="v">8</span></div>
+            <div class="field" style="flex:1;background:var(--surface)"><span style="font-size:11px">长度</span><span class="v">86</span></div>
+          </div>
+          <div>
+            <div style="font-size:11.5px;color:var(--on-surface-var);margin-bottom:6px">绑定贴图</div>
+            <div class="chips"><span class="chip-s on">左上臂.png</span><span class="chip-s"><span class="ic" data-ic="add"></span>添加</span></div>
+          </div>
+          <div style="flex:1"></div>
+          <button class="btn filled" style="justify-content:center">完成</button>
+        </div>
+      </div>
+
+      <div style="max-width:320px;align-self:center">
+        <b style="font-size:13px;display:block;margin-bottom:10px">手机端取舍</b>
+        <p style="font-size:12.5px;color:var(--on-surface-var);margin:0 0 14px">屏幕宽度不足以同时容纳三栏，因此：</p>
+        <ul style="font-size:12.5px;color:var(--on-surface-var);padding-left:18px;margin:0 0 16px;line-height:1.9">
+          <li>骨骼树改为右上角「层级」入口，全屏 Bottom sheet 呈现</li>
+          <li>属性面板改成点击骨骼后弹出的半屏抽屉</li>
+          <li>时间轴默认折叠到 150dp，上滑展开为全屏</li>
+          <li>播放 FAB 固定在右下，拇指自然落点</li>
+          <li>工具栏从顶部迁移到左侧竖排，避免遮挡手势区域</li>
+        </ul>
+        <div class="chips">
+          <span class="chip-s">Bottom sheet</span>
+          <span class="chip-s">FAB</span>
+          <span class="chip-s">48dp 触控</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 07 组件 ================= -->
+<section id="comp">
+  <div class="wrap">
+    <div class="eyebrow">07 / Components</div>
+    <h2 class="title">组件与动效</h2>
+    <p class="lede">只使用 Material 3 既有组件，通过尺寸与状态表达编辑器的层级，不自造控件。以下为界面中出现的全部组件及其规格。</p>
+
+    <div class="gal">
+      <div class="gcard">
+        <h4>按钮</h4>
+        <div class="grow">
+          <button class="btn filled">导出</button>
+          <button class="btn tonal">重置</button>
+          <button class="btn outlined">镜像</button>
+          <button class="btn text">取消</button>
+        </div>
+      </div>
+      <div class="gcard">
+        <h4>FAB</h4>
+        <div class="grow">
+          <div class="fab"><span class="ic" data-ic="add" style="color:inherit;width:24px;height:24px"></span></div>
+          <div class="fab sm"><span class="ic" data-ic="play" style="color:inherit;width:20px;height:20px"></span></div>
+          <button class="btn tonal" style="height:56px;border-radius:16px;padding:0 20px"><span class="ic" data-ic="bone"></span>新建骨骼</button>
+        </div>
+      </div>
+      <div class="gcard">
+        <h4>分段按钮</h4>
+        <div class="seg">
+          <button class="on">装配</button><button>动画</button><button>权重</button>
+        </div>
+      </div>
+      <div class="gcard">
+        <h4>筛选与状态 Chip</h4>
+        <div class="chips">
+          <span class="chip-s on"><span class="ic" data-ic="eye"></span>显示贴图</span>
+          <span class="chip-s"><span class="ic" data-ic="onion"></span>洋葱皮</span>
+          <span class="chip-s"><span class="ic" data-ic="lock"></span>锁定</span>
+        </div>
+      </div>
+      <div class="gcard">
+        <h4>数值滑杆</h4>
+        <div class="slider-row" style="margin-top:2px">
+          <div class="line"><span>旋转</span><span>24.0°</span></div>
+          <input type="range" min="0" max="100" value="62" style="--p:62%">
+        </div>
+      </div>
+      <div class="gcard">
+        <h4>关键帧标记</h4>
+        <div class="grow" style="gap:18px">
+          <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--on-surface-var)"><i class="kf" style="position:static;transform:rotate(45deg)"></i>关键帧</span>
+          <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--on-surface-var)"><i class="kf e" style="position:static;transform:rotate(45deg)"></i>缓动</span>
+          <span style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--on-surface-var)"><i class="kf t" style="position:static;transform:rotate(45deg)"></i>末帧</span>
+        </div>
+      </div>
+      <div class="gcard" style="grid-column:span 2">
+        <h4>Snackbar</h4>
+        <div class="snack"><span>已将「左上臂」绑定到 左上臂.png</span><b>撤销</b></div>
+      </div>
+    </div>
+
+    <h3 class="sub">动效参数</h3>
+    <div id="motion"></div>
+    <p class="note">所有动效遵循 Material 3 motion：标准曲线 <code>cubic-bezier(0.2, 0, 0, 1)</code>，强调曲线用于进入屏幕的元素。唯一例外是画布与时间轴的拖动反馈——必须 0ms 跟手，任何缓动都会破坏「直接操纵」的手感。</p>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="footer">
+    <span>骨骼动画 App · UI 设计稿 v1.0</span>
+    <span>Material Design 3 · 1280×800 / 390×844 · 8dp 栅格</span>
+  </div>
+</div>
+
+<script>
+/* ---------- 色调带 ---------- */
+const TONES=[10,20,30,40,50,60,70,80,90,95,99];
+const PAL=[
+ ['Primary','P',['#21005D','#381E72','#4F378B','#6750A4','#7F67BE','#9A82DB','#B69DF8','#D0BCFF','#EADDFF','#F6EDFF','#FFFBFE']],
+ ['Secondary','S',['#1D192B','#332D41','#4A4458','#625B71','#7A7289','#958DA5','#B0A7C0','#CCC2DC','#E8DEF8','#F6EDFF','#FFFBFE']],
+ ['Tertiary','T',['#31111D','#492532','#633B48','#7D5260','#986977','#B58392','#D29DAC','#EFB8C8','#FFD8E4','#FFECF1','#FFFBFA']],
+ ['Neutral','N',['#1D1B20','#322F35','#48464C','#605D64','#79767D','#938F96','#AEA9B1','#CAC5CD','#E6E0E9','#F5EFF7','#FEF7FF']],
+ ['Neutral Var.','NV',['#1D1B20','#322F35','#49454F','#605D66','#79747E','#938F99','#AEA9B4','#CAC4D0','#E7E0EC','#F5EEFA','#FFFBFE']],
+ ['Error','E',['#410E0B','#601410','#8C1D18','#B3261E','#DC362E','#E46962','#EC928E','#F2B8B5','#F9DEDC','#FCEEEE','#FFFBF9']]
+];
+function lum(hex){const c=hex.replace('#','');const r=parseInt(c.substr(0,2),16)/255,g=parseInt(c.substr(2,2),16)/255,b=parseInt(c.substr(4,2),16)/255;return .2126*r+.7152*g+.0722*b}
+document.getElementById('pal').innerHTML=PAL.map(([name,abbr,arr])=>{
+  const cells=arr.map((hex,i)=>`<div class="sw ${lum(hex)<.5?'ondark':''}" style="background:${hex}"><i>${TONES[i]}</i></div>`).join('');
+  return `<div class="row"><span class="lbl">${name}</span>${cells}</div>`;
+}).join('');
+
+/* ---------- 语义角色 ---------- */
+const ROLES=[
+ ['primary','Primary','#6750A4','#FFFFFF','骨骼链 / 主操作'],
+ ['primary-container','Primary Container','#EADDFF','#21005D','选中行 / FAB'],
+ ['secondary','Secondary','#625B71','#FFFFFF','贴图部件'],
+ ['secondary-container','Secondary Container','#E8DEF8','#1D192B','导航选中'],
+ ['tertiary','Tertiary','#7D5260','#FFFFFF','关键帧 / 播放头'],
+ ['tertiary-container','Tertiary Container','#FFD8E4','#31111D','录制状态'],
+ ['surface','Surface','#FEF7FF','#1D1B20','页面底色'],
+ ['surface-container','Surface Container','#F3EDF7','#1D1B20','面板 / 侧栏'],
+ ['outline','Outline','#79747E','#FFFFFF','输入框描边'],
+ ['outline-variant','Outline Variant','#CAC4D0','#1D1B20','分隔线 / 网格'],
+ ['error','Error','#B3261E','#FFFFFF','解绑 / 删除'],
+ ['error-container','Error Container','#F9DEDC','#410E0B','警告横幅'],
+ ['inverse-surface','Inverse Surface','#322F35','#F5EFF7','提示气泡 / Snackbar'],
+ ['surface-container-high','Surface Container High','#ECE6F0','#1D1B20','浮层 / 弹出菜单']
+];
+document.getElementById('roles').innerHTML=ROLES.map(([k,n,bg,fg,use])=>
+ `<div class="role"><div class="chip" style="background:${bg};color:${fg};font-size:12px">Aa</div><div class="meta"><b>${n}</b><span>${bg}</span><span style="color:var(--on-surface-var);font-family:inherit;font-size:10.5px;margin-top:4px">${use}</span></div></div>`).join('');
+
+const DARK=[
+ ['#D0BCFF','#381E72','Primary','骨骼链 / 主操作'],['#4F378B','#EADDFF','Primary Container','选中行 / FAB'],
+ ['#CCC2DC','#332D41','Secondary','贴图部件'],['#4A4458','#E8DEF8','Secondary Container','导航选中'],
+ ['#EFB8C8','#492532','Tertiary','关键帧 / 播放头'],['#633B48','#FFD8E4','Tertiary Container','录制状态'],
+ ['#141218','#E6E0E9','Surface','页面底色'],['#211F26','#E6E0E9','Surface Container','面板 / 侧栏']
+];
+document.getElementById('roles-dark').innerHTML=DARK.map(([bg,fg,n,use])=>
+ `<div class="role" style="background:#141218"><div class="chip" style="background:${bg};color:${fg};font-size:12px">Aa</div><div class="meta" style="background:#1D1B20"><b style="color:#E6E0E9">${n}</b><span style="color:#938F99">${bg}</span><span style="color:#CAC4D0;font-family:inherit;font-size:10.5px;margin-top:4px">${use}</span></div></div>`).join('');
+
+/* ---------- 图标 ---------- */
+const ICONS={
+ menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+ select:'<path d="M6 3.5 17.5 12l-5.4 1.2 2.7 5.8-2.6 1.2-2.7-5.8L6 17.4z" fill="currentColor" stroke="none"/>',
+ bone:'<path d="M8.5 15.5 15.5 8.5"/><circle cx="6.9" cy="13.5" r="2.4"/><circle cx="10.5" cy="17.1" r="2.4"/><circle cx="13.5" cy="6.9" r="2.4"/><circle cx="17.1" cy="10.5" r="2.4"/>',
+ link:'<path d="M10.5 13.5a3.6 3.6 0 0 1 0-5l2-2a3.6 3.6 0 0 1 5.1 5.1l-1.1 1.1"/><path d="M13.5 10.5a3.6 3.6 0 0 1 0 5l-2 2a3.6 3.6 0 0 1-5.1-5.1l1.1-1.1"/>',
+ ik:'<circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="7.6" stroke-dasharray="2 3"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2"/>',
+ play:'<path d="M8 5.4 19 12 8 18.6z" fill="currentColor" stroke="none"/>',
+ pause:'<path d="M9 5.5v13M15 5.5v13" stroke-width="2.6"/>',
+ prev:'<path d="M16 5.5v13"/><path d="M17.5 12 8 6.2v11.6z" fill="currentColor" stroke="none"/>',
+ next:'<path d="M8 5.5v13"/><path d="M6.5 12 16 6.2v11.6z" fill="currentColor" stroke="none"/>',
+ undo:'<path d="M4.5 9.5h9a4.8 4.8 0 0 1 0 9.6H9"/><path d="M8 5.5 4 9.5l4 4"/>',
+ redo:'<path d="M19.5 9.5h-9a4.8 4.8 0 0 0 0 9.6H15"/><path d="M16 5.5l4 4-4 4"/>',
+ grid:'<path d="M4 9h16M4 15h16M9 4v16M15 4v16"/>',
+ layers:'<path d="M12 3.6 3.6 8.2 12 12.8l8.4-4.6z"/><path d="M3.6 15.4 12 20l8.4-4.6"/>',
+ image:'<rect x="3.5" y="4.5" width="17" height="15" rx="2.6"/><path d="M3.8 16.2 8.6 11.4l3.9 3.9 2.7-2.7 5 5"/><circle cx="15.4" cy="9.2" r="1.4" fill="currentColor" stroke="none"/>',
+ weight:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/>',
+ keyframe:'<path d="M12 3.6 20.4 12 12 20.4 3.6 12z" fill="currentColor" stroke="none"/>',
+ onion:'<circle cx="9.4" cy="12" r="5.4" opacity=".4"/><circle cx="14.6" cy="12" r="5.4"/>',
+ mirror:'<path d="M12 3v18" stroke-dasharray="2 2.6"/><path d="M9.6 6.4 4.2 12l5.4 5.6z"/><path d="M14.4 6.4 19.8 12l-5.4 5.6z"/>',
+ zoom:'<circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8 20 20"/><path d="M11 8.4v5.2M8.4 11h5.2"/>',
+ more:'<circle cx="12" cy="5" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="19" r="1.9" fill="currentColor" stroke="none"/>',
+ export:'<path d="M12 15.5V3.8"/><path d="M8 7.8 12 3.8l4 4"/><path d="M4.5 15v3.4A1.6 1.6 0 0 0 6.1 20h11.8a1.6 1.6 0 0 0 1.6-1.6V15"/>',
+ lock:'<rect x="4.6" y="10.4" width="14.8" height="9.6" rx="2.6"/><path d="M8 10.4V7.6a4 4 0 0 1 8 0v2.8"/>',
+ eye:'<path d="M2.6 12S6.2 6.6 12 6.6 21.4 12 21.4 12 17.8 17.4 12 17.4 2.6 12 2.6 12z"/><circle cx="12" cy="12" r="2.8"/>',
+ add:'<path d="M12 5v14M5 12h14"/>',
+ settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 7.5l2 1.2M17.5 15.3l2 1.2M4.5 16.5l2-1.2M17.5 8.7l2-1.2"/>',
+ chevron:'<path d="M9.6 6 15.6 12l-6 6"/>'
+};
+const NAMES={menu:'菜单',select:'选择',bone:'骨骼',link:'绑定',ik:'IK',play:'播放',pause:'暂停',prev:'上一帧',next:'下一帧',undo:'撤销',redo:'重做',grid:'网格',layers:'图层',image:'部件',weight:'权重',keyframe:'关键帧',onion:'洋葱皮',mirror:'镜像',zoom:'缩放',more:'更多',export:'导出',lock:'锁定',eye:'显示',add:'新建',settings:'设置',chevron:'展开'};
+function svg(name,size){return `<svg viewBox="0 0 24 24" width="${size||24}" height="${size||24}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`}
+document.querySelectorAll('[data-ic]').forEach(el=>{el.innerHTML=svg(el.dataset.ic)});
+document.getElementById('icongrid').innerHTML=Object.keys(ICONS).map(k=>`<div class="ic-cell"><span class="ic" data-x="${k}">${svg(k)}</span><span class="nm">${NAMES[k]||k}</span></div>`).join('');
+
+/* ---------- 动效表 ---------- */
+const MOTION=[['面板切换','300ms','Emphasized decelerate'],['骨骼选中反馈','200ms','Standard'],['时间轴上滑展开','400ms','Emphasized'],['关键帧吸附','120ms','Standard'],['撤销 Snackbar','150ms in / 75ms out','Decelerate'],['画布拖动 / 旋转','0ms','直接操纵'],['底部抽屉拖拽','跟手 + 弹性吸附','Spring 0.85']];
+document.getElementById('motion').innerHTML=MOTION.map(([n,d,e])=>
+ `<div class="motion-row"><span>${n}</span><div><div class="bar-anim" style="width:${Math.min(100,parseInt(d)/4+10)}%"></div></div><span class="mono" style="color:var(--on-surface-var);font-size:11.5px">${d} · ${e}</span></div>`).join('');
+
+/* ---------- 骨骼人物 ---------- */
+const SKEL=`
+<g class="ground-g"><ellipse class="ground" cx="150" cy="522" rx="78" ry="10"/></g>
+<g class="b-head">
+  <path class="skull" d="M150 26c21 0 35 15 35 37 0 13-4 23-10 29v13c0 6-5 11-11 11h-28c-6 0-11-5-11-11V92c-6-6-10-16-10-29 0-22 14-37 35-37z"/>
+  <g class="skull-d">
+    <path d="M133 104h34M140 104v7M147 104v7M154 104v7M161 104v7"/>
+  </g>
+  <ellipse class="socket" cx="136.5" cy="66" rx="8.6" ry="9.8"/>
+  <ellipse class="socket" cx="163.5" cy="66" rx="8.6" ry="9.8"/>
+  <path class="skull-d" d="M150 79l-5.4 12h10.8z"/>
+</g>
+<g class="b-spine">
+  <path class="tube" d="M150 118v182"/><path class="tube-in" d="M150 118v182"/>
+  <path class="thin" d="M150 150v90"/><path class="thin-in" d="M150 150v90" style="stroke:#EDE8DF"/>
+</g>
+<g class="b-ribs">
+  <path class="thin" d="M150 152C124 150 106 164 106 184"/><path class="thin" d="M150 152C176 150 194 164 194 184"/>
+  <path class="thin" d="M150 169C122 167 102 183 102 204"/><path class="thin" d="M150 169C178 167 198 183 198 204"/>
+  <path class="thin" d="M150 186C121 184 100 202 100 224"/><path class="thin" d="M150 186C179 184 200 202 200 224"/>
+  <path class="thin" d="M150 203C123 201 104 217 104 237"/><path class="thin" d="M150 203C177 201 196 217 196 237"/>
+  <path class="thin" d="M150 220C127 218 111 231 111 247"/><path class="thin" d="M150 220C173 218 189 231 189 247"/>
+</g>
+<g class="b-clav">
+  <path class="tube" d="M150 142C133 134 119 133 108 138"/><path class="tube-in" d="M150 142C133 134 119 133 108 138"/>
+  <path class="tube" d="M150 142C167 134 181 133 192 138"/><path class="tube-in" d="M150 142C167 134 181 133 192 138"/>
+</g>
+<g class="b-armL">
+  <path class="tube" d="M107 145c-5 27-10 48-13 71"/><path class="tube-in" d="M107 145c-5 27-10 48-13 71"/>
+  <path class="tube" d="M94 216c-3 27-6 49-8 70"/><path class="tube-in" d="M94 216c-3 27-6 49-8 70"/>
+  <path class="thin" d="M86 286c-3 12-5 22-5 32"/><path class="thin-in" d="M86 286c-3 12-5 22-5 32"/>
+  <path class="thin" d="M81 318l-4 8M81 318l1 9M81 318l7 7" style="stroke-width:5"/>
+</g>
+<g class="b-armR">
+  <path class="tube" d="M193 145c5 27 10 48 13 71"/><path class="tube-in" d="M193 145c5 27 10 48 13 71"/>
+  <path class="tube" d="M206 216c3 27 6 49 8 70"/><path class="tube-in" d="M206 216c3 27 6 49 8 70"/>
+  <path class="thin" d="M214 286c3 12 5 22 5 32"/><path class="thin-in" d="M214 286c3 12 5 22 5 32"/>
+  <path class="thin" d="M219 318l4 8M219 318l-1 9M219 318l-7 7" style="stroke-width:5"/>
+</g>
+<g class="b-pelvis">
+  <path class="tube" d="M150 300c-16 0-32-8-38-24"/><path class="tube-in" d="M150 300c-16 0-32-8-38-24"/>
+  <path class="tube" d="M150 300c16 0 32-8 38-24"/><path class="tube-in" d="M150 300c16 0 32-8 38-24"/>
+  <path class="thin" d="M112 276c6 12 20 20 38 20 18 0 32-8 38-20"/>
+</g>
+<g class="b-legL">
+  <path class="tube" d="M129 306c-4 33-6 58-7 86"/><path class="tube-in" d="M129 306c-4 33-6 58-7 86"/>
+  <path class="tube" d="M122 392c-2 32-3 56-4 82"/><path class="tube-in" d="M122 392c-2 32-3 56-4 82"/>
+  <path class="thin" d="M130 398c-1 30-2 54-3 76" style="stroke-width:5"/><path class="thin-in" d="M130 398c-1 30-2 54-3 76" style="stroke-width:2.4"/>
+  <path class="thin" d="M118 474c-8 8-16 16-20 24"/><path class="thin-in" d="M118 474c-8 8-16 16-20 24"/>
+  <path class="thin" d="M98 498h12" style="stroke-width:5"/>
+</g>
+<g class="b-legR">
+  <path class="tube" d="M171 306c4 33 6 58 7 86"/><path class="tube-in" d="M171 306c4 33 6 58 7 86"/>
+  <path class="tube" d="M178 392c2 32 3 56 4 82"/><path class="tube-in" d="M178 392c2 32 3 56 4 82"/>
+  <path class="thin" d="M170 398c1 30 2 54 3 76" style="stroke-width:5"/><path class="thin-in" d="M170 398c1 30 2 54 3 76" style="stroke-width:2.4"/>
+  <path class="thin" d="M182 474c8 8 16 16 20 24"/><path class="thin-in" d="M182 474c8 8 16 16 20 24"/>
+  <path class="thin" d="M202 498h-12" style="stroke-width:5"/>
+</g>
+<g class="b-joints">
+  <circle class="joint" cx="107" cy="145" r="4.4"/><circle class="joint" cx="193" cy="145" r="4.4"/>
+  <circle class="joint" cx="94" cy="216" r="4"/><circle class="joint" cx="206" cy="216" r="4"/>
+  <circle class="joint" cx="86" cy="286" r="3.6"/><circle class="joint" cx="214" cy="286" r="3.6"/>
+  <circle class="joint" cx="129" cy="306" r="4.2"/><circle class="joint" cx="171" cy="306" r="4.2"/>
+  <circle class="joint" cx="122" cy="392" r="4"/><circle class="joint" cx="178" cy="392" r="4"/>
+  <circle class="joint" cx="118" cy="474" r="3.6"/><circle class="joint" cx="182" cy="474" r="3.6"/>
+</g>`;
+
+/* rig overlay: primary 骨骼链 + 锚点 */
+const RIG=`
+<g class="sk-rig">
+  <line class="hl" x1="129" y1="306" x2="150" y2="300"/><line class="hl" x1="171" y1="306" x2="150" y2="300"/>
+  <line x1="150" y1="300" x2="150" y2="142"/>
+  <line x1="150" y1="142" x2="150" y2="100"/>
+  <line x1="150" y1="142" x2="107" y2="145"/><line x1="150" y1="142" x2="193" y2="145"/>
+  <line x1="107" y1="145" x2="94" y2="216"/><line x1="193" y1="145" x2="206" y2="216"/>
+  <line x1="94" y1="216" x2="86" y2="286"/><line x1="206" y1="216" x2="214" y2="286"/>
+  <line x1="86" y1="286" x2="81" y2="316"/><line x1="214" y1="286" x2="219" y2="316"/>
+  <line x1="129" y1="306" x2="122" y2="392"/><line x1="171" y1="306" x2="178" y2="392"/>
+  <line x1="122" y1="392" x2="118" y2="474"/><line x1="178" y1="392" x2="182" y2="474"/>
+  <line x1="118" y1="474" x2="100" y2="498"/><line x1="182" y1="474" x2="200" y2="498"/>
+  <circle class="anchor" cx="150" cy="300" r="5.6"/>
+  <circle cx="150" cy="142" r="4.3"/><circle cx="150" cy="100" r="4.3"/>
+  <circle cx="107" cy="145" r="4.3"/><circle cx="193" cy="145" r="4.3"/>
+  <circle cx="94" cy="216" r="4"/><circle cx="206" cy="216" r="4"/>
+  <circle cx="86" cy="286" r="3.8"/><circle cx="214" cy="286" r="3.8"/>
+  <circle cx="129" cy="306" r="4"/><circle cx="171" cy="306" r="4"/>
+  <circle cx="122" cy="392" r="3.8"/><circle cx="178" cy="392" r="3.8"/>
+  <circle cx="118" cy="474" r="3.6"/><circle cx="182" cy="474" r="3.6"/>
+</g>`;
+
+const SEL=`
+<g class="sk-rig">
+  <line class="hl" x1="150" y1="300" x2="150" y2="142"/>
+  <line x1="150" y1="300" x2="150" y2="142"/>
+  <line x1="150" y1="142" x2="150" y2="100"/>
+  <line x1="150" y1="142" x2="107" y2="145"/><line x1="150" y1="142" x2="193" y2="145"/>
+  <line x1="107" y1="145" x2="94" y2="216"/>
+  <line x1="193" y1="145" x2="206" y2="216"/>
+  <line x1="94" y1="216" x2="86" y2="286"/><line x1="206" y1="216" x2="214" y2="286"/>
+  <line x1="129" y1="306" x2="122" y2="392"/><line x1="171" y1="306" x2="178" y2="392"/>
+  <line x1="122" y1="392" x2="118" y2="474"/><line x1="178" y1="392" x2="182" y2="474"/>
+  <line class="hl" x1="107" y1="145" x2="94" y2="216"/>
+  <circle cx="107" cy="145" r="6" stroke-width="2.8"/>
+  <circle class="anchor" cx="107" cy="146" r="3.4" stroke-width="1.6"/>
+  <circle cx="94" cy="216" r="6.4" stroke-width="2.8"/>
+  <circle cx="150" cy="300" r="4.6"/><circle cx="150" cy="142" r="4.3"/><circle cx="150" cy="100" r="4.3"/>
+  <circle cx="193" cy="145" r="4.3"/><circle cx="206" cy="216" r="4"/><circle cx="214" cy="286" r="3.8"/>
+  <circle cx="129" cy="306" r="4"/><circle cx="171" cy="306" r="4"/>
+  <circle cx="122" cy="392" r="3.8"/><circle cx="178" cy="392" r="3.8"/>
+  <circle cx="118" cy="474" r="3.6"/><circle cx="182" cy="474" r="3.6"/>
+  <circle cx="86" cy="286" r="3.8"/>
+  <path class="arc" d="M94 196a20 20 0 0 1 8-18"/>
+  <path class="halo" d="M94 216l-26-12"/>
+</g>`;
+
+function skelSVG(variant){
+  const rig = variant==='rig' ? RIG : (variant==='sel' ? SEL : '');
+  const cls = variant==='parts' ? 'v-parts' : '';
+  const dark = variant==='dark' ? 'sk-dark' : '';
+  return `<svg viewBox="0 0 300 560" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block" class="sk ${cls} ${dark}">${SKEL}${rig}</svg>`;
+}
+document.querySelectorAll('[data-skel]').forEach(el=>{el.innerHTML=skelSVG(el.dataset.skel)});
+document.getElementById('canvasSkel').innerHTML=skelSVG('sel');
+document.getElementById('phoneSkel').innerHTML=skelSVG('sel');
+</script>
+<style>
+.sk-dark .tube{stroke:#57525C}.sk-dark .tube-in{stroke:#E6E0E9}.sk-dark .thin{stroke:#57525C}
+.sk-dark .thin-in{stroke:#E6E0E9!important}.sk-dark .skull{fill:#E6E0E9;stroke:#57525C}
+.sk-dark .skull-d{stroke:#8A8590}.sk-dark .socket{fill:#57525C;opacity:.7}
+.sk-dark .joint{fill:#E6E0E9;stroke:#57525C}
+.sk-dark .sk-rig line,.sk-dark .sk-rig path{stroke:#D0BCFF}.sk-dark .sk-rig circle{fill:#1D1B20;stroke:#D0BCFF}
+.sk-dark .sk-rig circle.anchor{fill:#D0BCFF}
+.v-parts .b-armL .thin{stroke:#1D9E75}.v-parts .b-armL .tube{stroke:#7FBFAA}
+.v-parts .b-armR .thin{stroke:#378ADD}.v-parts .b-armR .tube{stroke:#8FBDE8}
+.v-parts .b-legL .thin{stroke:#BA7517}.v-parts .b-legL .tube{stroke:#D9AE6E}
+.v-parts .b-legR .thin{stroke:#D4537E}.v-parts .b-legR .tube{stroke:#E3A0B6}
+.v-parts .b-head .skull{stroke:#7D5260}.v-parts .b-spine .tube{stroke:#6750A4}
+.v-parts .b-ribs .thin{stroke:#6750A4;opacity:.75}
+.v-parts .b-pelvis .tube{stroke:#6750A4}
+.v-parts .b-clav .tube{stroke:#6750A4;opacity:.6}
+.v-parts .b-armL .tube-in,.v-parts .b-armR .tube-in{stroke:#F7F3EC}
+</style>
+</body>
+</html>

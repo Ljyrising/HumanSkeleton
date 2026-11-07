@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>2D 骨骼动画编辑器 · 控制方式流畅度对比演示</title>
+<style>
+  :root{
+    --primary:#6750A4; --on-primary:#FFFFFF; --primary-container:#EADDFF; --on-primary-container:#21005D;
+    --secondary:#625B71; --secondary-container:#E8DEF8; --on-secondary-container:#1D192B;
+    --tertiary:#7D5260; --tertiary-container:#FFD8E4; --on-tertiary-container:#31111D;
+    --surface:#FFFBFE; --surface-variant:#E7E0EC; --on-surface:#1C1B1F; --on-surface-variant:#49454F;
+    --outline:#CAC4D0; --outline-variant:#E7E0EC; --error:#B3261E; --on-error:#FFF;
+    --inverse-surface:#322F35; --scrim:rgba(0,0,0,.32);
+    --ok:#386A20; --warn:#8A5300;
+    --shadow:0 1px 2px rgba(0,0,0,.10);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:"Roboto","Segoe UI",system-ui,sans-serif;background:var(--surface);color:var(--on-surface)}
+  .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+  /* ── Top App Bar (M3) ── */
+  .appbar{height:64px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--surface);
+    border-bottom:1px solid var(--outline-variant)}
+  .appbar .menu{width:40px;height:40px;border-radius:20px;display:grid;place-items:center;color:var(--on-surface-variant)}
+  .appbar .title{font-size:20px;font-weight:500;letter-spacing:.1px}
+  .appbar .sub{font-size:12px;color:var(--on-surface-variant)}
+  .appbar .spacer{flex:1}
+  .seg{display:inline-flex;background:var(--surface-variant);border-radius:999px;padding:4px}
+  .seg button{border:0;background:transparent;padding:8px 18px;border-radius:999px;font-size:14px;font-weight:500;color:var(--on-surface-variant);cursor:pointer;transition:.2s}
+  .seg button.active{background:var(--primary);color:var(--on-primary);box-shadow:var(--shadow)}
+
+  /* ── Body ── */
+  .body{flex:1;display:flex;min-height:0}
+  .rail{width:212px;border-right:1px solid var(--outline-variant);padding:12px;overflow:auto;background:var(--surface)}
+  .panel-title{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--on-surface-variant);margin:8px 4px 6px}
+  .tree{list-style:none;margin:0;padding:0;font-size:14px}
+  .tree li{padding:7px 10px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:8px}
+  .tree li:hover{background:var(--surface-variant)}
+  .tree li.sel{background:var(--primary-container);color:var(--on-primary-container);font-weight:500}
+  .tree .dot{width:8px;height:8px;border-radius:50%;background:var(--primary)}
+  .tree .child{margin-left:16px;border-left:1px solid var(--outline-variant);padding-left:6px}
+
+  .stage{flex:1;position:relative;display:flex;flex-direction:column;min-width:0;background:#F6F2FA}
+  .canvas-wrap{flex:1;position:relative;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+  canvas:active{cursor:grabbing}
+  .hud{position:absolute;top:12px;left:12px;background:rgba(28,27,31,.78);color:#fff;border-radius:12px;
+    padding:10px 12px;font-size:12px;line-height:1.6;backdrop-filter:blur(4px);min-width:172px}
+  .hud b{font-size:15px}
+  .hud .row{display:flex;justify-content:space-between;gap:12px}
+  .hud .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-weight:600}
+  .hud .good{background:#2E7D32;color:#fff}
+  .hud .bad{background:#C62828;color:#fff}
+  .legend{position:absolute;bottom:12px;left:12px;background:rgba(255,251,254,.9);border:1px solid var(--outline-variant);
+    border-radius:10px;padding:8px 10px;font-size:11px;color:var(--on-surface-variant);line-height:1.7}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+  /* ── Right panel ── */
+  .props{width:300px;border-left:1px solid var(--outline-variant);padding:14px;overflow:auto;background:var(--surface)}
+  .card{background:var(--surface-variant);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+  .card h3{margin:0 0 10px;font-size:14px;font-weight:500;color:var(--on-surface)}
+  .metric{display:flex;align-items:baseline;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(0,0,0,.06)}
+  .metric:last-child{border-bottom:0}
+  .metric .k{font-size:13px;color:var(--on-surface-variant)}
+  .metric .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  .metric .v small{font-size:12px;font-weight:400;color:var(--on-surface-variant);margin-left:3px}
+  .slider{width:100%;accent-color:var(--primary)}
+  .slider-row{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:13px}
+  .slider-row label{width:64px;color:var(--on-surface-variant)}
+
+  .bench table{width:100%;border-collapse:collapse;font-size:13px}
+  .bench th,.bench td{padding:8px 6px;text-align:right;border-bottom:1px solid rgba(0,0,0,.06)}
+  .bench th:first-child,.bench td:first-child{text-align:left;color:var(--on-surface-variant)}
+  .bench .win{color:var(--ok);font-weight:600}
+  .bar{height:8px;border-radius:4px;background:#D9D2E3;overflow:hidden;margin-top:3px}
+  .bar > i{display:block;height:100%;background:var(--primary)}
+  .bar.opt > i{background:#2E7D32}
+  .bar.leg > i{background:#C62828}
+
+  /* ── Transport ── */
+  .transport{height:96px;border-top:1px solid var(--outline-variant);display:flex;align-items:center;gap:18px;padding:0 18px;background:var(--surface)}
+  .fab{width:56px;height:56px;border-radius:28px;border:0;background:var(--primary);color:var(--on-primary);
+    display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 6px rgba(103,80,164,.4)}
+  .fab:active{transform:scale(.96)}
+  .tl{flex:1}
+  .tl .ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--on-surface-variant);margin-bottom:4px}
+  input[type=range].seek{width:100%;accent-color:var(--primary)}
+  .ctrl-btn{border:1px solid var(--outline);background:var(--surface);border-radius:12px;padding:8px 12px;cursor:pointer;color:var(--on-surface-variant);font-size:13px}
+  .ctrl-btn.on{background:var(--secondary-container);color:var(--on-secondary-container);border-color:transparent}
+  .btn-primary{border:0;background:var(--primary);color:var(--on-primary);border-radius:12px;padding:10px 16px;cursor:pointer;font-weight:500}
+  .material-sym{font-family:"Material Symbols Rounded","Segoe UI Symbol",sans-serif}
+  .icon{width:24px;height:24px;display:inline-block}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- App Bar -->
+  <header class="appbar">
+    <div class="menu material-sym">menu</div>
+    <div>
+      <div class="title">2D 骨骼动画编辑器</div>
+      <div class="sub">控制方式流畅度对比 · M3 设计落地原型</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="optimized" class="active">优化 · Choreographer/RAF</button>
+      <button data-mode="legacy">传统 · onClick/事件内重绘</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- Left rail -->
+    <aside class="rail">
+      <div class="panel-title">骨骼树</div>
+      <ul class="tree" id="tree">
+        <li data-bone="root" class="sel"><span class="dot"></span>root · 骨盆</li>
+        <li data-bone="spine" class="child"><span class="dot"></span>spine · 脊柱</li>
+        <li data-bone="head" class="child"><span class="dot"></span>head · 头</li>
+        <li data-bone="larmU" class="child"><span class="dot"></span>lArmU · 左上臂</li>
+        <li data-bone="larmL" class="child"><span class="dot"></span>lArmL · 左下臂</li>
+        <li data-bone="rarmU" class="child"><span class="dot"></span>rArmU · 右上臂</li>
+        <li data-bone="rarmL" class="child"><span class="dot"></span>rArmL · 右前臂</li>
+        <li data-bone="lthigh" class="child"><span class="dot"></span>lThigh · 左大腿</li>
+        <li data-bone="lshin" class="child"><span class="dot"></span>lShin · 左小腿</li>
+        <li data-bone="rthigh" class="child"><span class="dot"></span>rThigh · 右大腿</li>
+        <li data-bone="rshin" class="child"><span class="dot"></span>rShin · 右小腿</li>
+      </ul>
+      <div class="panel-title">操作提示</div>
+      <div style="font-size:12px;color:var(--on-surface-variant);line-height:1.7;padding:0 4px">
+        • 点 <b>播放</b> 启动骨骼动画<br>
+        • 在画布上 <b>拖拽骨骼</b> 可旋转该关节<br>
+        • 切换顶部模式对比手感差异
+      </div>
+    </aside>
+
+    <!-- Stage -->
+    <main class="stage">
+      <div class="canvas-wrap">
+        <canvas id="cv"></canvas>
+        <div class="hud" id="hud">
+          <div class="row"><span>模式</span><b id="hudMode">优化</b></div>
+          <div class="row"><span>实时 FPS</span><span class="pill good" id="hFps">–</span></div>
+          <div class="row"><span>帧时间</span><span id="hFrame">– ms</span></div>
+          <div class="row"><span>输入延迟</span><span id="hLat">– ms</span></div>
+          <div class="row"><span>丢帧数</span><span id="hDrop">0</span></div>
+        </div>
+        <div class="legend">
+          <div><i style="background:#6750A4"></i>骨骼链（主色）</div>
+          <div><i style="background:#EADDFF;border:1px solid #6750A4"></i>关节锚点</div>
+          <div><i style="background:#7D5260"></i>选中骨骼 · 旋转弧</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Right props -->
+    <aside class="props">
+      <div class="card">
+        <h3>实时性能</h3>
+        <div class="metric"><span class="k">平均帧率</span><span class="v" id="mFps">–<small>fps</small></span></div>
+        <div class="metric"><span class="k">平均帧时间</span><span class="v" id="mFrame">–<small>ms</small></span></div>
+        <div class="metric"><span class="k">输入→首帧延迟</span><span class="v" id="mLat">–<small>ms</small></span></div>
+        <div class="metric"><span class="k">累计丢帧</span><span class="v" id="mDrop">0</span></div>
+      </div>
+
+      <div class="card">
+        <h3>选中骨骼 · <span id="selName">root</span></h3>
+        <div class="slider-row"><label>旋转</label>
+          <input type="range" min="-180" max="180" value="0" class="slider" id="rotSlider">
+          <span id="rotVal">0°</span>
+        </div>
+        <div style="font-size:12px;color:var(--on-surface-variant);line-height:1.6">
+          拖动滑块或在画布上拖拽关节。优化模式计算与绘制解耦，旋转实时跟手；传统模式在触摸/点击事件内同步重绘，主线程阻塞时明显迟滞。
+        </div>
+      </div>
+
+      <div class="card bench">
+        <h3>流畅度基准对比</h3>
+        <button class="btn-primary" id="benchBtn" style="width:100%;margin-bottom:10px">运行 3 秒基准测试</button>
+        <table id="benchTable">
+          <thead><tr><th>指标</th><th>优化模式</th><th>传统模式</th></tr></thead>
+          <tbody>
+            <tr><td>平均帧率</td><td id="bOptFps">–</td><td id="bLegFps">–</td></tr>
+            <tr><td>平均帧时间</td><td id="bOptFrame">–</td><td id="bLegFrame">–</td></tr>
+            <tr><td>输入延迟</td><td id="bOptLat">–</td><td id="bLegLat">–</td></tr>
+            <tr><td>丢帧占比</td><td id="bOptDrop">–</td><td id="bLegDrop">–</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:10px">
+          <div style="font-size:12px;color:var(--on-surface-variant)">帧率</div>
+          <div class="bar opt"><i id="barOpt" style="width:0%"></i></div>
+          <div class="bar leg"><i id="barLeg" style="width:0%"></i></div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--on-surface-variant)" id="benchNote">
+          点击上方按钮，分别运行两种控制方式各 3 秒并自动采集指标。
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Transport -->
+  <footer class="transport">
+    <button class="fab" id="playBtn" title="播放/暂停">
+      <span class="material-sym" id="playIcon" style="font-size:28px">play_arrow</span>
+    </button>
+    <div class="tl">
+      <div class="ticks"><span>0</span><span>15</span><span>30</span><span>45</span><span>60 帧</span></div>
+      <input type="range" min="0" max="60" value="0" step="0.1" class="seek" id="seek">
+    </div>
+    <button class="ctrl-btn on" id="loopBtn">循环 ✓</button>
+    <button class="ctrl-btn" id="resetBtn">重置姿态</button>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   2D 骨骼动画编辑器 — 控制方式流畅度对比原型
+   - 骨骼用层级仿射矩阵驱动渲染（Mx 类实现 translate/rotate/scale/invert/map）
+   - 模式A 传统：onClick 触发、在事件回调内同步插值+重绘、带固有延迟
+   - 模式B 优化：Choreographer/RAF 帧驱动、计算与绘制解耦、指针手势矩阵逆映射
+   ============================================================ */
+
+/* ---------- 2x3 仿射矩阵 ---------- */
+class Mx{
+  constructor(a=1,b=0,c=0,d=1,e=0,f=0){this.a=a;this.b=b;this.c=c;this.d=d;this.e=e;this.f=f;}
+  mul(m){return new Mx(
+    this.a*m.a+this.c*m.b, this.b*m.a+this.d*m.b,
+    this.a*m.c+this.c*m.d, this.b*m.c+this.d*m.d,
+    this.a*m.e+this.c*m.f+this.e, this.b*m.e+this.d*m.f+this.f);}
+  translate(x,y){return this.mul(new Mx(1,0,0,1,x,y));}
+  rotate(r){const s=Math.sin(r),c=Math.cos(r);return this.mul(new Mx(c,s,-s,c,0,0));}
+  invert(){const det=this.a*this.d-this.b*this.c; if(Math.abs(det)<1e-9) return null;
+    const ia=this.d/det, ib=-this.b/det, ic=-this.c/det, id=this.a/det;
+    return new Mx(ia,ib,ic,id, -(ia*this.e+ic*this.f), -(ib*this.e+id*this.f));}
+  map(x,y){return [this.a*x+this.c*y+this.e, this.b*x+this.d*y+this.f];}
+}
+
+/* ---------- 骨骼定义（局部坐标系，pivot 在 (0,0)，骨骼沿 -Y 延伸 len） ---------- */
+const BONES = {
+  root:   {parent:null,    jlx:0,   jly:0,   len:70, rot:0,  anim:(f)=>0},
+  spine:  {parent:'root',  jlx:0,   jly:-70, len:64, rot:0,  anim:(f)=>Math.sin(f*0.05)*0.04},
+  head:   {parent:'spine', jlx:0,   jly:-64, len:42, rot:0,  anim:(f)=>Math.sin(f*0.05+0.5)*0.06},
+  larmU:  {parent:'spine', jlx:-14, jly:-58, len:54, rot:0.5, anim:(f)=>Math.sin(f*0.08)*0.5},
+  larmL:  {parent:'larmU', jlx:0,   jly:-54, len:50, rot:0,   anim:(f)=>Math.max(0,Math.sin(f*0.08+1))*0.4},
+  rarmU:  {parent:'spine', jlx:14,  jly:-58, len:54, rot:-0.5,anim:(f)=>Math.sin(f*0.08+Math.PI)*0.5},
+  rarmL:  {parent:'rarmU', jlx:0,   jly:-54, len:50, rot:0,   anim:(f)=>Math.max(0,Math.sin(f*0.08+1+Math.PI))*0.4},
+  lthigh: {parent:'root',  jlx:-16, jly:0,   len:66, rot:0.06,anim:(f)=>Math.sin(f*0.08)*0.18},
+  lshin:  {parent:'lthigh',jlx:0,   jly:-66, len:62, rot:0,   anim:(f)=>Math.max(0,Math.sin(f*0.08+0.8))*0.3},
+  rthigh: {parent:'root',  jlx:16,  jly:0,   len:66, rot:-0.06,anim:(f)=>Math.sin(f*0.08+Math.PI)*0.18},
+  rshin:  {parent:'rthigh',jlx:0,   jly:-66, len:62, rot:0,   anim:(f)=>Math.max(0,Math.sin(f*0.08+0.8+Math.PI))*0.3},
+};
+const BASE_ROT = {};   // 手势/滑块改动的额外旋转，存这里
+for(const k in BONES) BASE_ROT[k]=0;
+
+/* ---------- 画布与世界矩阵 ---------- */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let DPR = 1, W=0, H=0, zoom=1;
+function resize(){
+  const r = cv.parentElement.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio||1);
+  W=r.width; H=r.height;
+  cv.width = W*DPR; cv.height = H*DPR;
+  zoom = Math.min(W,H)/360;
+}
+window.addEventListener('resize', ()=>{resize();});
+resize();
+
+function canvasMatrix(){
+  // 世界 → CSS 像素（不含 DPR，DPR 在 render 里通过 setTransform 统一缩放）
+  return new Mx(zoom,0,0,zoom, W/2, H/2 + 20);
+}
+
+/* 计算每根骨骼的世界矩阵与端点（纯计算，不碰绘制） */
+const worldCache = {};
+function computeWorld(){
+  const cm = canvasMatrix();
+  function walk(id){
+    const b = BONES[id];
+    const parentM = b.parent ? worldCache[b.parent].m : cm;
+    const m = parentM.translate(b.jlx, b.jly).rotate(b.rot + (BASE_ROT[id]||0) + b.anim(state.frame));
+    const pivot = m.map(0,0);
+    const end = m.translate(0,-b.len).map(0,0);
+    worldCache[id] = {m, pivot, end};
+    for(const c in BONES) if(BONES[c].parent===id) walk(c);
+  }
+  walk('root');
+}
+
+/* ---------- 渲染（仅绘制，只读 worldCache） ---------- */
+function render(){
+  ctx.setTransform(DPR,0,0,DPR,0,0);   // 统一按 DPR 缩放，后续坐标都用 CSS 像素
+  ctx.clearRect(0,0,W,H);
+  // 背景网格
+  ctx.strokeStyle='rgba(103,80,164,.06)'; ctx.lineWidth=1;
+  const step=40*zoom;
+  for(let x=(W/2)%step; x<W; x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=(H/2)%step; y<H; y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  const order = ['root','spine','head','lthigh','lshin','rthigh','rshin','larmU','larmL','rarmU','rarmL'];
+  // 骨骼链
+  for(const id of order){
+    const w = worldCache[id], b=BONES[id];
+    const isSel = id===state.selected;
+    ctx.lineCap='round';
+    // 白色底描边（关节粗线）
+    ctx.strokeStyle = isSel? '#7D5260':'#EADDFF';
+    ctx.lineWidth = isSel?13:10;
+    ctx.beginPath(); ctx.moveTo(w.pivot[0],w.pivot[1]); ctx.lineTo(w.end[0],w.end[1]); ctx.stroke();
+    // 主色骨骼
+    ctx.strokeStyle = isSel? '#7D5260':'#6750A4';
+    ctx.lineWidth = isSel?8:6;
+    ctx.beginPath(); ctx.moveTo(w.pivot[0],w.pivot[1]); ctx.lineTo(w.end[0],w.end[1]); ctx.stroke();
+    // 关节锚点
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#6750A4'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(w.pivot[0],w.pivot[1],6,0,7); ctx.fill(); ctx.stroke();
+  }
+  // 选中骨骼的旋转弧
+  if(state.selected && worldCache[state.selected]){
+    const w=worldCache[state.selected];
+    const ang = Math.atan2(w.end[0]-w.pivot[0], -(w.end[1]-w.pivot[1]));
+    ctx.strokeStyle='rgba(125,82,96,.55)'; ctx.lineWidth=2; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.arc(w.pivot[0],w.pivot[1],34, -ang-0.6, -ang+0.6); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+/* ---------- 状态 ---------- */
+const state = { mode:'optimized', playing:false, loop:true, frame:0, selected:'root',
+  rafId:0, legacyTimer:0, lastT:0, latencyStart:0, firstFrameDone:false, bench:false,
+  // telemetry
+  fpsInst:0, frameSum:0, frameN:0, dropSum:0, dropN:0, latSum:0, latN:0, lastDropTS:0 };
+
+const TARGET = 1000/60;
+
+/* 帧推进（纯计算） */
+function advanceFrame(t){
+  const dt = state.lastT? (t-state.lastT):16.7;
+  state.lastT = t;
+  state.dt = dt;
+  if(state.playing){
+    state.frame += dt/1000*30; // 30fps 动画速度
+    if(state.frame>60){ state.frame = state.loop? 0 : 60; if(!state.loop) state.playing=false; }
+    document.getElementById('seek').value = state.frame.toFixed(1);
+  }
+}
+
+/* 模拟传统模式"事件回调内繁重计算"（真实阻塞主线程）；带迭代上限防止虚拟时间下死循环 */
+function busy(ms){ const end=performance.now()+ms; let _i=0; while(performance.now()<end && _i++<2e6){} }
+
+/* 性能采样（复用 advanceFrame 已算好的 dt，避免重复取 lastT 导致 dt=0） */
+function samplePerf(){
+  if(!state.playing) return;
+  const dt = state.dt||0;
+  if(dt>0){
+    state.fpsInst = 1000/dt;
+    state.frameSum += dt; state.frameN++;
+    if(dt > TARGET*1.5){ state.dropSum++; }
+    state.dropN++;
+  }
+  if(!state.firstFrameDone && state.latencyStart){
+    const lat = performance.now() - state.latencyStart;
+    state.latSum += lat; state.latN++;
+    state.firstFrameDone = true;
+  }
+}
+function refreshHud(){
+  const avgFrame = state.frameN? state.frameSum/state.frameN : 0;
+  const avgFps = avgFrame? 1000/avgFrame : 0;
+  const avgLat = state.latN? state.latSum/state.latN : 0;
+  const dropPct = state.dropN? state.dropSum/state.dropN*100 : 0;
+  document.getElementById('hFps').textContent = state.fpsInst.toFixed(0);
+  document.getElementById('hFps').className = 'pill '+(state.fpsInst>=55?'good':'bad');
+  document.getElementById('hFrame').textContent = (state.frameN?avgFrame:0).toFixed(1)+' ms';
+  document.getElementById('hLat').textContent = (state.latN?avgLat:0).toFixed(0)+' ms';
+  document.getElementById('hDrop').textContent = state.dropSum;
+  document.getElementById('mFps').innerHTML = avgFps.toFixed(0)+'<small>fps</small>';
+  document.getElementById('mFrame').innerHTML = avgFrame.toFixed(1)+'<small>ms</small>';
+  document.getElementById('mLat').innerHTML = avgLat.toFixed(0)+'<small>ms</small>';
+  document.getElementById('mDrop').textContent = state.dropSum;
+}
+
+/* ---------- 优化模式：单一 RAF 循环（计算+绘制解耦） ---------- */
+function rafLoop(t){
+  state.rafId = requestAnimationFrame(rafLoop);
+  computeWorld();           // 计算
+  if(state.mode==='optimized' && !state.bench){
+    if(state.playing) advanceFrame(t);
+    samplePerf();          // 仅优化模式在此采样（传统模式由 legacyTick 采样；基准期间由 bench 自身采样）
+  }
+  render();                 // 绘制（始终运行，保证空闲/拖拽跟手）
+  refreshHud();
+}
+
+/* ---------- 传统模式：onClick 触发 + 定时器 + 事件内重绘 ---------- */
+function legacyStart(){
+  state.playing = true;
+  state.latencyStart = performance.now();
+  state.firstFrameDone = false;
+  state.lastT = 0; state.dt = 0;
+  // 模拟 onClick 固有延迟：必须等 ACTION_UP + TouchSlop 确认
+  setTimeout(()=>{ legacyTick(); }, 150);
+}
+function legacyTick(){
+  if(!state.playing) return;
+  const t = performance.now();
+  busy(9);                  // 模拟"在事件回调内同步做关键帧插值+drawBitmap"
+  computeWorld();
+  advanceFrame(t);
+  samplePerf();
+  render();                 // 在事件/定时器回调内直接重绘
+  refreshHud();
+  state.legacyTimer = setTimeout(legacyTick, 16);
+}
+
+/* ---------- 播放控制 ---------- */
+function play(){
+  if(state.playing) return;
+  if(state.mode==='optimized'){
+    state.latencyStart = performance.now();
+    state.firstFrameDone = false;
+    state.lastT = 0; state.dt = 0;
+    state.playing = true;
+  }else{
+    legacyStart();
+  }
+  updatePlayIcon();
+}
+function pause(){
+  state.playing=false;
+  if(state.rafId) {/* raf 持续运行用于空闲渲染，不取消 */}
+  if(state.legacyTimer) clearTimeout(state.legacyTimer);
+  updatePlayIcon();
+}
+function togglePlay(){ state.playing? pause() : play(); }
+function updatePlayIcon(){ document.getElementById('playIcon').textContent = state.playing?'pause':'play_arrow'; }
+
+document.getElementById('playBtn').addEventListener('pointerdown', (e)=>{
+  e.preventDefault();
+  // 优化模式：ACTION_DOWN 即时触发，不等抬起+TouchSlop（指哪打哪）
+  // 传统模式：此处的"点击"仍会被模拟成延迟触发
+  togglePlay();
+});
+
+/* ---------- 手势：指针拖拽旋转骨骼（矩阵逆映射回局部坐标） ---------- */
+let dragging=false;
+function screenToWorld(sx,sy){
+  const inv = canvasMatrix().invert();
+  return inv? inv.map(sx, sy) : [sx,sy];   // 返回骨骼世界坐标（CSS 像素空间）
+}
+function pickBone(wx,wy){
+  let best=null, bd=1e9;
+  for(const id in worldCache){
+    const p=worldCache[id].pivot, e=worldCache[id].end;
+    for(const pt of [p,e]){
+      const d=Math.hypot(pt[0]-wx, pt[1]-wy);
+      if(d<bd && d<28){ bd=d; best=id; }
+    }
+  }
+  return best;
+}
+function worldAngle(m){ return Math.atan2(m.b, m.a); }
+cv.addEventListener('pointerdown',(e)=>{
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  const id = pickBone(w[0],w[1]);
+  if(id){ state.selected=id; dragging=true; cv.setPointerCapture(e.pointerId);
+    document.querySelectorAll('#tree li').forEach(li=>li.classList.toggle('sel', li.dataset.bone===id));
+    document.getElementById('selName').textContent=id;
+    syncSlider();
+  }
+});
+cv.addEventListener('pointermove',(e)=>{
+  if(!dragging||!state.selected) return;
+  const w = screenToWorld(e.offsetX, e.offsetY);
+  const wb = worldCache[state.selected];
+  const desired = Math.atan2(w[0]-wb.pivot[0], -(w[1]-wb.pivot[1]));
+  const parentM = BONES[state.selected].parent? worldCache[BONES[state.selected].parent].m : canvasMatrix();
+  const parentAng = worldAngle(parentM);
+  // 让该骨骼世界角度 = desired：worldAngle = parentAng + b.rot + BASE + anim
+  BASE_ROT[state.selected] = desired - parentAng - BONES[state.selected].rot - BONES[state.selected].anim(state.frame);
+  syncSlider();
+  if(state.mode==='legacy'){ // 传统模式：在事件内同步重绘（主线程阻塞点）
+    busy(6); computeWorld(); render();
+  }
+});
+cv.addEventListener('pointerup',(e)=>{ dragging=false; });
+cv.addEventListener('pointercancel',(e)=>{ dragging=false; });
+
+/* ---------- 树选择 / 滑块 / 传输 ---------- */
+document.querySelectorAll('#tree li').forEach(li=>{
+  li.addEventListener('click',()=>{
+    state.selected=li.dataset.bone;
+    document.querySelectorAll('#tree li').forEach(x=>x.classList.toggle('sel',x===li));
+    document.getElementById('selName').textContent=li.dataset.bone;
+    syncSlider();
+  });
+});
+function syncSlider(){
+  const deg = (BASE_ROT[state.selected]||0)*180/Math.PI;
+  document.getElementById('rotSlider').value = deg.toFixed(0);
+  document.getElementById('rotVal').textContent = deg.toFixed(0)+'°';
+}
+document.getElementById('rotSlider').addEventListener('input',(e)=>{
+  BASE_ROT[state.selected] = parseFloat(e.target.value)*Math.PI/180;
+  if(state.mode==='legacy'){ busy(6); computeWorld(); render(); }
+});
+document.getElementById('seek').addEventListener('input',(e)=>{
+  state.frame = parseFloat(e.target.value);
+  if(state.mode==='legacy'){ computeWorld(); render(); }
+});
+document.getElementById('loopBtn').addEventListener('click',(e)=>{
+  state.loop=!state.loop; e.target.classList.toggle('on',state.loop);
+  e.target.textContent = state.loop?'循环 ✓':'循环 ✗';
+});
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  for(const k in BASE_ROT) BASE_ROT[k]=0; syncSlider();
+  if(state.mode==='legacy'){ computeWorld(); render(); }
+});
+
+/* ---------- 模式切换 ---------- */
+document.querySelectorAll('#modeSeg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const m=b.dataset.mode; if(m===state.mode) return;
+    // 切换时停掉传统定时器
+    if(state.legacyTimer) clearTimeout(state.legacyTimer);
+    state.mode=m;
+    document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('active',x===b));
+    document.getElementById('hudMode').textContent = m==='optimized'?'优化':'传统';
+    // 重置遥测
+    state.frameSum=state.frameN=state.dropSum=state.dropN=state.latSum=state.latN=0;
+    state.latencyStart=0; state.firstFrameDone=false;
+  });
+});
+
+/* ---------- 基准测试：分别运行两种模式各 3 秒，采集指标 ---------- */
+function runBench(){
+  const note=document.getElementById('benchNote'); note.textContent='运行中…';
+  state.bench=true;
+  function collect(mode, done){
+    state.dropSum=state.dropN=state.frameSum=state.frameN=state.latSum=state.latN=0;
+    state.frame=0; state.playing=true; state.latencyStart=performance.now(); state.firstFrameDone=false;
+    state.lastT=0; state.dt=0;
+    const t0=performance.now();
+    if(mode==='optimized'){
+      const id=requestAnimationFrame(function loop(t){
+        if(performance.now()-t0>3000){ cancelAnimationFrame(id); state.playing=false; return done(); }
+        computeWorld(); advanceFrame(t); samplePerf(); render(); refreshHud();
+        requestAnimationFrame(loop);
+      });
+    }else{
+      const tick=()=>{
+        if(performance.now()-t0>3000){ clearTimeout(state.legacyTimer); state.playing=false; return done(); }
+        busy(9); const t=performance.now(); computeWorld(); advanceFrame(t); samplePerf(); render(); refreshHud();
+        state.legacyTimer=setTimeout(tick,16);
+      };
+      setTimeout(tick,150);
+    }
+  }
+  collect('optimized', ()=>{
+    const opt={ fps:1000/(state.frameSum/state.frameN), frame:state.frameSum/state.frameN,
+      lat:state.latSum/state.latN, drop:state.dropSum/state.dropN*100 };
+    collect('legacy', ()=>{
+      const leg={ fps:1000/(state.frameSum/state.frameN), frame:state.frameSum/state.frameN,
+        lat:state.latSum/state.latN, drop:state.dropSum/state.dropN*100 };
+      document.getElementById('bOptFps').textContent=opt.fps.toFixed(0)+' fps';
+      document.getElementById('bLegFps').textContent=leg.fps.toFixed(0)+' fps';
+      document.getElementById('bOptFrame').textContent=opt.frame.toFixed(1)+' ms';
+      document.getElementById('bLegFrame').textContent=leg.frame.toFixed(1)+' ms';
+      document.getElementById('bOptLat').textContent=opt.lat.toFixed(0)+' ms';
+      document.getElementById('bLegLat').textContent=leg.lat.toFixed(0)+' ms';
+      document.getElementById('bOptDrop').textContent=opt.drop.toFixed(0)+' %';
+      document.getElementById('bLegDrop').textContent=leg.drop.toFixed(0)+' %';
+      document.getElementById('barOpt').style.width=Math.min(100,opt.fps/60*100)+'%';
+      document.getElementById('barLeg').style.width=Math.min(100,leg.fps/60*100)+'%';
+      note.innerHTML='结论：优化模式帧率接近满帧、输入延迟≈1 帧、几乎无丢帧；'+
+        '传统模式因事件回调内同步重绘阻塞主线程 + onClick 固有延迟，帧率下降、延迟高达 ~150ms、丢帧明显。';
+      state.bench=false;
+    });
+  });
+}
+document.getElementById('benchBtn').addEventListener('click', runBench);
+
+/* ---------- 启动 ---------- */
+state.rafId = requestAnimationFrame(rafLoop);   // 优化模式常驻 RAF（空闲也渲染，保证拖拽跟手）
+computeWorld(); render();
+
+/* ---------- 自动演示（无头截图用） ---------- */
+(function auto(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('mode')==='legacy'){ document.querySelector('#modeSeg button[data-mode=legacy]').click(); }
+  const a=p.get('auto');
+  if(a){
+    window.addEventListener('load',()=>{
+      if(a==='play'){ togglePlay(); }
+      else if(a==='bench'){ togglePlay(); setTimeout(runBench, 300); }
+    });
+  }
+})();
+</script>
+</body>
+</html>
