@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import com.example.humanskeleton.art.SkeletonArt
+import com.example.humanskeleton.gesture.HandFrame
+import com.example.humanskeleton.gesture.HandGesture
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -59,6 +61,18 @@ class EditorState {
     var dragTarget by mutableStateOf<Int?>(null)
     var longPressMenu by mutableStateOf<Pair<String, Offset>?>(null)
     var renameTarget by mutableStateOf<String?>(null)
+
+    // ---- 摄像头体感手势 ----
+    var gestureEnabled by mutableStateOf(false)
+    var gestureFrame by mutableStateOf(HandFrame.EMPTY)
+    var gestureStatus by mutableStateOf("手势识别未开启")
+    var gestureShowGuide by mutableStateOf(false)
+    /** 旋转覆盖层：boneId -> 角度(度)。不写进 pose，关闭手势即可完全还原 */
+    var gestureAngles by mutableStateOf(emptyMap<String, Float>())
+    /** 长度覆盖层：boneId -> 沿骨轴缩放系数 */
+    var gestureLengths by mutableStateOf(emptyMap<String, Float>())
+    /** 重心覆盖层（SVG 单位），叠加到 root.x / root.y */
+    var gestureRoot by mutableStateOf(Offset.Zero)
 
     /** 由当前状态实时计算 FK 变换（手势与绘制共用同一份结果） */
     fun currentTransforms(): Map<String, Mx> =
@@ -292,6 +306,17 @@ class EditorState {
             if (t.boneId in clipDriven) continue
             out[t.boneId] = (out[t.boneId] ?: 0f) + sampleTrack(t.keys, f)
         }
+
+        // 体感手势覆盖层：与关键帧、程序步态共用同一份 FK 输入，
+        // 因此绘制、关节命中测试、洋葱皮看到的都是同一副骨架。
+        // 覆盖层独立于 pose，不进入撤销栈；关闭手势 / OK 复位即可完全还原。
+        for ((id, deg) in gestureAngles) out[id] = (out[id] ?: 0f) + deg
+        for ((id, scale) in gestureLengths) {
+            val key = "$id.len"
+            out[key] = (out[key] ?: 1f) * scale
+        }
+        out["root.x"] = (out["root.x"] ?: 0f) + gestureRoot.x
+        out["root.y"] = (out["root.y"] ?: 0f) + gestureRoot.y
         return out
     }
 
@@ -359,6 +384,91 @@ class EditorState {
             DefaultClip.tracks.indexOfFirst { it.boneId == t.boneId }.let { if (it < 0) 99 else it }
         }
         return listed
+    }
+
+    // ---- 摄像头体感手势：识别结果 → 骨骼运动 ----
+
+    /** 开关：关闭时清空覆盖层，骨架立刻回到原本的编辑姿态 */
+    fun setGestureActive(on: Boolean) {
+        gestureEnabled = on
+        if (on) {
+            playing = false       // 手势操控需要静止基线，避免与 24 帧走路循环叠加
+            gestureStatus = "正在启动摄像头…"
+        } else {
+            resetGestureControl()
+            gestureStatus = "手势识别已关闭"
+        }
+    }
+
+    fun resetGestureControl() {
+        gestureAngles = emptyMap()
+        gestureLengths = emptyMap()
+        gestureRoot = Offset.Zero
+        gestureFrame = HandFrame.EMPTY
+    }
+
+    /** 每帧回调：连续操控。掌心位置 / 捏合距离 / 画圈转角都写进覆盖层而非 pose */
+    fun onGestureFrame(frame: HandFrame) {
+        gestureFrame = frame
+        if (!gestureEnabled || !frame.hasHand || frame.confidence < 0.45f) return
+        val id = selected ?: "lArmU"
+        when (frame.gesture) {
+            HandGesture.OPEN_PALM -> gestureRoot = Offset(
+                (frame.centroidX - 0.5f) * 34f,
+                (frame.centroidY - 0.5f) * 24f
+            )
+            HandGesture.FIST -> {
+                val deg = ((frame.centroidX - 0.5f) * 100f).coerceIn(-55f, 55f)
+                gestureAngles = gestureAngles + (id to deg)
+            }
+            HandGesture.PINCH -> {
+                val scale = (0.65f + frame.pinch.coerceIn(0f, 1.1f) * 0.70f)
+                    .coerceIn(0.65f, 1.45f)
+                gestureLengths = gestureLengths + (id to scale)
+            }
+            HandGesture.CIRCLE -> {
+                val deg = (frame.motion * 57.2958f).coerceIn(-38f, 38f)
+                gestureAngles = gestureAngles + ("pelvis" to deg) +
+                        ("spine" to -deg * 0.5f) + ("head" to deg * 0.25f)
+            }
+            else -> Unit
+        }
+    }
+
+    /** 离散命令：由 HandMotionTracker 在稳定保持 / 挥动完成时回调一次 */
+    fun onGestureAction(g: HandGesture) {
+        if (!gestureEnabled) return
+        when (g) {
+            HandGesture.POINT -> {
+                val list = bones.filter { it.hasRigLine }
+                if (list.isEmpty()) return
+                val i = list.indexOfFirst { it.id == selected }
+                selected = list[(i + 1 + list.size) % list.size].id
+                snackbar = "手势：已选中「${bone(selected)?.let { labelOf(it) } ?: selected}」"
+            }
+            HandGesture.VICTORY -> {
+                playing = !playing
+                snackbar = if (playing) "手势：播放走路循环" else "手势：暂停"
+            }
+            HandGesture.OK -> {
+                resetGestureControl()
+                seek(0f)
+                snackbar = "手势：姿态已复位"
+            }
+            HandGesture.SWIPE_LEFT -> { stepFrame(-1); snackbar = "手势：后退一帧" }
+            HandGesture.SWIPE_RIGHT -> { stepFrame(1); snackbar = "手势：前进一帧" }
+            HandGesture.SWIPE_UP -> {
+                gestureAngles = gestureAngles +
+                        ("lArmU" to -34f) + ("rArmU" to -34f) +
+                        ("lArmL" to -12f) + ("rArmL" to -12f)
+                snackbar = "手势：抬起手臂"
+            }
+            HandGesture.SWIPE_DOWN -> {
+                gestureAngles = gestureAngles - "lArmU" - "rArmU" - "lArmL" - "rArmL"
+                snackbar = "手势：放下手臂"
+            }
+            else -> Unit
+        }
     }
 
     // ---- 绑定部件 ----

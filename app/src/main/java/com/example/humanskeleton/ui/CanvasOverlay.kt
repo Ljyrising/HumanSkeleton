@@ -163,7 +163,10 @@ fun BoxScope.CanvasOverlays(state: EditorState, compact: Boolean = false) {
         }
     }
 
-    // ⑥ 重命名对话框
+    // ⑥ 摄像头体感手势：开关 / 相机小窗 / HUD（右上角，平板与手机共用）
+    GestureOverlay(state, compact = compact)
+
+    // ⑦ 重命名对话框
     state.renameTarget?.let { id ->
         var text by remember(id) { mutableStateOf(state.bone(id)?.let { state.labelOf(it) } ?: "") }
         AlertDialog(
